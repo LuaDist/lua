@@ -59,6 +59,51 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym);
 */
 
 #include <dlfcn.h>
+#include <sys/stat.h> 
+
+#undef setprogdir
+
+static void setprogdir (lua_State *L) {
+  char buff[PATH_MAX + 1];
+  char *lb;
+  int nsize;
+
+#if defined(__linux__)
+  nsize = readlink("/proc/self/exe", buff, PATH_MAX - 1);
+  if (nsize > 0) buff[nsize] = 0;
+#elif defined(__FreeBSD__)
+  int len;
+  len = readlink("/proc/curproc/file", buff, PATH_MAX - 1);
+  if (nsize > 0) buff[nsize] = 0;
+#else
+  // Rely on 'lsof' ... sadly this is the best we can do as fallback for most UNIX systems (OSX too)
+  // lsof will list open files, this includes the executable listed as 1st file
+  int pid;
+  FILE* fd;
+  char cmd[80];
+  pid = getpid();
+  // Get first open file, lsof marks files as REG
+  sprintf(cmd, "lsof -p %d | awk '{if ($5==\"REG\") { print $9 ; exit}}'", pid);
+
+  fd = popen(cmd, "r");
+  nsize = fread(buff, 1, PATH_MAX - 1, fd);
+
+  // remove newline
+  if (nsize > 1) buff[nsize - 1] = '\0';
+#endif
+  
+  if (nsize == 0 || (lb = strrchr(buff, '/')) == NULL)
+    luaL_error(L, "unable to get process executable path");
+  else {
+    *lb = '\0';
+    // Add _PATH global
+    lua_pushstring(L, buff);
+    lua_setglobal(L, "_PATH");
+
+    luaL_gsub(L, lua_tostring(L, -1), LUA_EXECDIR, buff);
+    lua_remove(L, -2);  /* remove original string */
+  }
+}
 
 static void ll_unloadlib (void *lib) {
   dlclose(lib);
@@ -103,6 +148,10 @@ static void setprogdir (lua_State *L) {
     luaL_error(L, "unable to get ModuleFileName");
   else {
     *lb = '\0';
+    // Add _PATH global
+    lua_pushstring(L, buff);
+    lua_setglobal(L, "_PATH");
+
     luaL_gsub(L, lua_tostring(L, -1), LUA_EXECDIR, buff);
     lua_remove(L, -2);  /* remove original string */
   }
