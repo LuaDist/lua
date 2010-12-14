@@ -79,26 +79,43 @@
 ** CHANGE them if your machine has a non-conventional directory
 ** hierarchy or if you want to install your libraries in
 ** non-conventional directories.
-*/
-#if defined(_WIN32)
-/*
-** In Windows, any exclamation mark ('!') in the path is replaced by the
+** Any exclamation mark ('!') in the path is replaced by the
 ** path of the directory of the executable file of the current process.
 */
+#if defined(_WIN32)
 
 #define LUADIST_LDIR "!\\..\\share\\lua\\lmod\\"
 #define LUADIST_CDIR "!\\..\\share\\lua\\cmod\\"
 
 #define LUA_LDIR	"!\\lua\\"
 #define LUA_CDIR	"!\\"
-#define LUA_PATH_DEFAULT  \
-		".\\?.lua;"  LUADIST_LDIR"?.lua;" LUADIST_LDIR"?\\init.lua;" \
-		             LUA_LDIR"?.lua;"  LUA_LDIR"?\\init.lua;" \
-		             LUA_CDIR"?.lua;"  LUA_CDIR"?\\init.lua"
-#define LUA_CPATH_DEFAULT \
-        ".\\?.dll;" LUADIST_CDIR"?.dll;" LUADIST_CDIR"loadall.dll;" \
-	                LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
 
+#define LUA_PATH_DEFAULT ".\\?.lua;" \
+                LUADIST_LDIR"?.lua;" LUADIST_LDIR"?\\init.lua;" \
+		        LUA_LDIR"?.lua;"  LUA_LDIR"?\\init.lua;" \
+		        LUA_CDIR"?.lua;"  LUA_CDIR"?\\init.lua"
+
+#define LUA_CPATH_DEFAULT ".\\?.dll;" \
+                LUADIST_CDIR"?.dll;" LUADIST_CDIR"loadall.dll;" \
+	            LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
+
+#elif defined(__CYGWIN__)
+
+#define LUADIST_LDIR "!/../share/lua/lmod/"
+#define LUADIST_CDIR "!/../share/lua/cmod/"
+
+#define LUA_ROOT	"/usr/local/"
+#define LUA_LDIR	LUA_ROOT "share/lua/5.1/"
+#define LUA_CDIR	LUA_ROOT "lib/lua/5.1/"
+
+#define LUA_PATH_DEFAULT "./?.lua;" \
+                LUADIST_LDIR"?.lua;" LUADIST_LDIR"?/init.lua;" \
+		        LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
+		        LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua"
+
+#define LUA_CPATH_DEFAULT "./?.dll;" \
+                LUADIST_CDIR"?.dll;" LUADIST_CDIR"loadall.dll;" \
+	            LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
 #else
 
 #define LUADIST_LDIR "!/../share/lua/lmod/"
@@ -107,13 +124,15 @@
 #define LUA_ROOT	"/usr/local/"
 #define LUA_LDIR	LUA_ROOT "share/lua/5.1/"
 #define LUA_CDIR	LUA_ROOT "lib/lua/5.1/"
-#define LUA_PATH_DEFAULT  \
-		"./?.lua;"  LUADIST_LDIR"?.lua;" LUADIST_LDIR"?/init.lua;" \
+
+#define LUA_PATH_DEFAULT "./?.lua;" \
+                    LUADIST_LDIR"?.lua;" LUADIST_LDIR"?/init.lua;" \
 		            LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
 		            LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua"
-#define LUA_CPATH_DEFAULT \
-	"./?.so;"   LUADIST_CDIR"?.so;" LUADIST_CDIR"loadall.so;" \
-	            LUA_CDIR"?.so;" LUA_CDIR"loadall.so"
+		            
+#define LUA_CPATH_DEFAULT "./?.so;" \
+                    LUADIST_CDIR"?.so;" LUADIST_CDIR"loadall.so;" \
+	                LUA_CDIR"?.so;" LUA_CDIR"loadall.so"
 #endif
 
 

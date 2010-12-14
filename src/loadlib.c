@@ -39,14 +39,70 @@
 #define ERRLIB		1
 #define ERRFUNC		2
 
-#define setprogdir(L)		((void)0)
-
-
 static void ll_unloadlib (void *lib);
 static void *ll_load (lua_State *L, const char *path);
 static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym);
+static void setprogdir (lua_State *L);
 
+/*
+** {=========================================================================
+** This determines the location of the executable for relative module loading
+** ==========================================================================
+*/
+#if defined(_WIN32) || defined(__CYGWIN__)
+  #include <windows.h>
+  #define PATH_MAX MAX_PATH
+#endif
 
+static void setprogdir (lua_State *L) {
+  char progdir[PATH_MAX + 1];
+  char *lb;
+  int nsize = sizeof(progdir)/sizeof(char);
+  int n;
+#if defined(_WIN32)
+  n = GetModuleFileNameA(NULL, progdir, nsize);
+#elif defined(__CYGWIN__)
+  char win_buff[PATH_MAX + 1];
+  GetModuleFileNameA(NULL, win_buff, nsize);
+  cygwin_conv_to_posix_path(win_buff, progdir);
+  n = strlen(progdir);
+#elif defined(__linux__)
+  n = readlink("/proc/self/exe", progdir, nsize);
+  if (n > 0) progdir[n] = 0;
+#elif defined(__FreeBSD__)
+  n = readlink("/proc/curproc/file", progdir, nsize);
+  if (n > 0) progdir[n] = 0;
+#else
+  // FALLBACK
+  // Use 'lsof' ... should work on most UNIX systems (incl. OSX)
+  // lsof will list open files, this captures the 1st file listed (usually the executable)
+  int pid;
+  FILE* fd;
+  char cmd[80];
+  pid = getpid();
+
+  sprintf(cmd, "lsof -p %d | awk '{if ($5==\"REG\") { print $9 ; exit}}' 2> /dev/null", pid);
+  fd = popen(cmd, "r");
+  n = fread(progdir, 1, nsize, fd);
+
+  // remove newline
+  if (n > 1) progdir[--n] = '\0';
+#endif
+  if (n == 0 || n == nsize || (lb = strrchr(progdir, (int)LUA_DIRSEP[0])) == NULL)
+    luaL_error(L, "unable to get process executable path");
+  else {
+    *lb = '\0';
+    // Set progdir global
+    lua_pushstring(L, progdir);
+    lua_setglobal(L, "_PROGDIR");
+    
+    // Replace the relative path placeholder
+    luaL_gsub(L, lua_tostring(L, -1), LUA_EXECDIR, progdir);
+    lua_remove(L, -2);
+  }
+}
+
+/* }====================================================== */
 
 #if defined(LUA_DL_DLOPEN)
 /*
@@ -61,54 +117,9 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym);
 #include <dlfcn.h>
 #include <sys/stat.h> 
 
-#undef setprogdir
-
-static void setprogdir (lua_State *L) {
-  char buff[PATH_MAX + 1];
-  char *lb;
-  int nsize;
-
-#if defined(__linux__)
-  nsize = readlink("/proc/self/exe", buff, PATH_MAX - 1);
-  if (nsize > 0) buff[nsize] = 0;
-#elif defined(__FreeBSD__)
-  int len;
-  len = readlink("/proc/curproc/file", buff, PATH_MAX - 1);
-  if (nsize > 0) buff[nsize] = 0;
-#else
-  // Rely on 'lsof' ... sadly this is the best we can do as fallback for most UNIX systems (OSX too)
-  // lsof will list open files, this includes the executable listed as 1st file
-  int pid;
-  FILE* fd;
-  char cmd[80];
-  pid = getpid();
-  // Get first open file, lsof marks files as REG
-  sprintf(cmd, "lsof -p %d | awk '{if ($5==\"REG\") { print $9 ; exit}}'", pid);
-
-  fd = popen(cmd, "r");
-  nsize = fread(buff, 1, PATH_MAX - 1, fd);
-
-  // remove newline
-  if (nsize > 1) buff[nsize - 1] = '\0';
-#endif
-  
-  if (nsize == 0 || (lb = strrchr(buff, '/')) == NULL)
-    luaL_error(L, "unable to get process executable path");
-  else {
-    *lb = '\0';
-    // Add _PATH global
-    lua_pushstring(L, buff);
-    lua_setglobal(L, "_PATH");
-
-    luaL_gsub(L, lua_tostring(L, -1), LUA_EXECDIR, buff);
-    lua_remove(L, -2);  /* remove original string */
-  }
-}
-
 static void ll_unloadlib (void *lib) {
   dlclose(lib);
 }
-
 
 static void *ll_load (lua_State *L, const char *path) {
   void *lib = dlopen(path, RTLD_NOW);
@@ -135,28 +146,6 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym) {
 */
 
 #include <windows.h>
-
-
-#undef setprogdir
-
-static void setprogdir (lua_State *L) {
-  char buff[MAX_PATH + 1];
-  char *lb;
-  DWORD nsize = sizeof(buff)/sizeof(char);
-  DWORD n = GetModuleFileNameA(NULL, buff, nsize);
-  if (n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
-    luaL_error(L, "unable to get ModuleFileName");
-  else {
-    *lb = '\0';
-    // Add _PATH global
-    lua_pushstring(L, buff);
-    lua_setglobal(L, "_PATH");
-
-    luaL_gsub(L, lua_tostring(L, -1), LUA_EXECDIR, buff);
-    lua_remove(L, -2);  /* remove original string */
-  }
-}
-
 
 static void pusherror (lua_State *L) {
   int error = GetLastError();
