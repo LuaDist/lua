@@ -59,13 +59,13 @@ static void setprogdir (lua_State *L) {
   char *lb;
   int nsize = sizeof(progdir)/sizeof(char);
   int n;
-#if defined(_WIN32)
-  n = GetModuleFileNameA(NULL, progdir, nsize);
-#elif defined(__CYGWIN__)
+#if defined(__CYGWIN__)
   char win_buff[PATH_MAX + 1];
   GetModuleFileNameA(NULL, win_buff, nsize);
   cygwin_conv_to_posix_path(win_buff, progdir);
   n = strlen(progdir);
+#elif defined(_WIN32)
+  n = GetModuleFileNameA(NULL, progdir, nsize);
 #elif defined(__linux__)
   n = readlink("/proc/self/exe", progdir, nsize);
   if (n > 0) progdir[n] = 0;
