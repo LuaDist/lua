@@ -11,7 +11,7 @@ INCLUDE(dist.cmake )
 # Determine install host
 IF ( WIN32 AND NOT CYGWIN)
 	ADD_DEFINITIONS ( -DLUA_BUILD_AS_DLL )
-	IF(MSVC)
+	IF(MSVC OR MINGW)
 		ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE )
 		SET(DEF_FILE src/lua.def)
 		SET(DLL_RC_FILE src/lua_dll.rc)
