@@ -24,40 +24,22 @@
 ** CHANGE it (define it) if you want Lua to avoid the use of any
 ** non-ansi feature or library.
 */
-#if defined(__STRICT_ANSI__)
-#define LUA_ANSI
-#endif
+#cmakedefine LUA_ANSI
 
+#cmakedefine LUA_WIN
+#cmakedefine LUA_USE_POSIX
+#cmakedefine LUA_USE_DLOPEN		/* needs an extra library: -ldl */
+#cmakedefine LUA_USE_READLINE	/* needs some extra libraries */
 
-#if !defined(LUA_ANSI) && defined(_WIN32)
-#define LUA_WIN
-#endif
+#cmakedefine LUA_USE_MKSTEMP
+#cmakedefine LUA_USE_ISATTY
+#cmakedefine LUA_USE_POPEN
+#cmakedefine LUA_USE_ULONGJMP
 
-#if defined(LUA_USE_LINUX)
-#define LUA_USE_POSIX
-#define LUA_USE_DLOPEN		/* needs an extra library: -ldl */
-#define LUA_USE_READLINE	/* needs some extra libraries */
-#endif
-
-#if defined(LUA_USE_MACOSX)
-#define LUA_USE_POSIX
-#define LUA_DL_DYLD		/* does not need extra library */
-#endif
-
-
-
-/*
-@@ LUA_USE_POSIX includes all functionallity listed as X/Open System
-@* Interfaces Extension (XSI).
-** CHANGE it (define it) if your system is XSI compatible.
-*/
-#if defined(LUA_USE_POSIX)
-#define LUA_USE_MKSTEMP
-#define LUA_USE_ISATTY
-#define LUA_USE_POPEN
-#define LUA_USE_ULONGJMP
-#endif
-
+//#if defined(LUA_USE_MACOSX)
+//#define LUA_USE_POSIX
+//#define LUA_DL_DYLD		/* does not need extra library */
+//#endif
 
 /*
 @@ LUA_PATH and LUA_CPATH are the names of the environment variables that
@@ -66,10 +48,9 @@
 @* checks for initialization code.
 ** CHANGE them if you want different names.
 */
-#define LUA_PATH        "LUA_PATH"
-#define LUA_CPATH       "LUA_CPATH"
-#define LUA_INIT	"LUA_INIT"
-
+#cmakedefine LUA_PATH "@LUA_PATH@"
+#cmakedefine LUA_CPATH "@LUA_CPATH@"
+#cmakedefine LUA_INIT "@LUA_INIT@"
 
 /*
 @@ LUA_PATH_DEFAULT is the default path that Lua uses to look for
@@ -82,75 +63,18 @@
 ** Any exclamation mark ('!') in the path is replaced by the
 ** path of the directory of the executable file of the current process.
 */
-#if defined(__CYGWIN__)
-
-#define LUADIST_LDIR "!/../share/lua/lmod/"
-#define LUADIST_CDIR "!/../share/lua/cmod/"
-
-#define LUA_ROOT	"/usr/local/"
-#define LUA_LDIR	LUA_ROOT "share/lua/5.1/"
-#define LUA_CDIR	LUA_ROOT "lib/lua/5.1/"
-
-#define LUA_PATH_DEFAULT "./?.lua;" \
-                LUADIST_LDIR"?.lua;" LUADIST_LDIR"?/init.lua;" \
-		        LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
-		        LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua"
-
-#define LUA_CPATH_DEFAULT "./?.dll;" \
-                LUADIST_CDIR"?.dll;" LUADIST_CDIR"loadall.dll;" \
-	            LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
-				
-#elif defined(_WIN32)
-
-#define LUADIST_LDIR "!\\..\\share\\lua\\lmod\\"
-#define LUADIST_CDIR "!\\..\\share\\lua\\cmod\\"
-
-#define LUA_LDIR	"!\\lua\\"
-#define LUA_CDIR	"!\\"
-
-#define LUA_PATH_DEFAULT ".\\?.lua;" \
-                LUADIST_LDIR"?.lua;" LUADIST_LDIR"?\\init.lua;" \
-		        LUA_LDIR"?.lua;"  LUA_LDIR"?\\init.lua;" \
-		        LUA_CDIR"?.lua;"  LUA_CDIR"?\\init.lua"
-
-#define LUA_CPATH_DEFAULT ".\\?.dll;" \
-                LUADIST_CDIR"?.dll;" LUADIST_CDIR"loadall.dll;" \
-	            LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll"
-
-
-#else
-
-#define LUADIST_LDIR "!/../share/lua/lmod/"
-#define LUADIST_CDIR "!/../share/lua/cmod/"
-
-#define LUA_ROOT	"/usr/local/"
-#define LUA_LDIR	LUA_ROOT "share/lua/5.1/"
-#define LUA_CDIR	LUA_ROOT "lib/lua/5.1/"
-
-#define LUA_PATH_DEFAULT "./?.lua;" \
-                    LUADIST_LDIR"?.lua;" LUADIST_LDIR"?/init.lua;" \
-		            LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
-		            LUA_CDIR"?.lua;"  LUA_CDIR"?/init.lua"
-		            
-#define LUA_CPATH_DEFAULT "./?.so;" \
-                    LUADIST_CDIR"?.so;" LUADIST_CDIR"loadall.so;" \
-	                LUA_CDIR"?.so;" LUA_CDIR"loadall.so"
-#endif
-
+#cmakedefine LUA_ROOT	"@LUA_ROOT@"
+#cmakedefine LUA_LDIR	"@LUA_LDIR@"
+#cmakedefine LUA_CDIR	"@LUA_CDIR@"
+#cmakedefine LUA_PATH_DEFAULT "@LUA_PATH_DEFAULT@"
+#cmakedefine LUA_CPATH_DEFAULT "@LUA_CPATH_DEFAULT@"
 
 /*
 @@ LUA_DIRSEP is the directory separator (for submodules).
 ** CHANGE it if your machine does not use "/" as the directory separator
 ** and is not Windows. (On Windows Lua automatically uses "\".)
 */
-#if defined(__CYGWIN__)
-#define LUA_DIRSEP	"/"
-#elif defined(_WIN32)
-#define LUA_DIRSEP	"\\"
-#else
-#define LUA_DIRSEP	"/"
-#endif
-
+#cmakedefine LUA_DIRSEP	"@LUA_DIRSEP@"
 
 /*
 @@ LUA_PATHSEP is the character that separates templates in a path.
@@ -242,7 +166,7 @@
 @* of a function in debug information.
 ** CHANGE it if you want a different size.
 */
-#define LUA_IDSIZE	60
+#cmakedefine LUA_IDSIZE	@LUA_IDSIZE@
 
 
 /*
@@ -277,8 +201,8 @@
 ** CHANGE them if you want different prompts. (You can also change the
 ** prompts dynamically, assigning to globals _PROMPT/_PROMPT2.)
 */
-#define LUA_PROMPT		"> "
-#define LUA_PROMPT2		">> "
+#cmakedefine LUA_PROMPT		"@LUA_PROMPT@"
+#cmakedefine LUA_PROMPT2	"@LUA_PROMPT2@"
 
 
 /*
@@ -294,7 +218,7 @@
 @* stand-alone interpreter.
 ** CHANGE it if you need longer lines.
 */
-#define LUA_MAXINPUT	512
+#cmakedefine LUA_MAXINPUT	@LUA_MAXINPUT@
 
 
 /*

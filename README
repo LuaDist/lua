@@ -23,9 +23,18 @@ See HISTORY for a summary of changes since the last released version.
 
 * Installation
   ------------
-  Lua is implemented in pure ANSI C, and compiles unmodified in all known
-  platforms that have an ANSI C compiler. In most Unix-like platforms, simply
-  do "make" with a suitable target. See INSTALL for detailed instructions.
+  In the LuaDist distribution the default makefiles have been replaced with
+  CMake. To build Lua use the following approach.
+  > mkdir _build && cd_build
+  > ccmake .. # Set up configuration
+  > cmake --build . --target install
+  
+  The default makefile should work too, you just need to edit src/luaconf.h.orig
+  and save it as src/luaconf.h.
+  
+  > make
+  
+  See INSTALL for detailed instructions with make.
 
 * Origin
   ------
