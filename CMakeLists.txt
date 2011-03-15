@@ -34,7 +34,7 @@ if ( WIN32 AND NOT CYGWIN )
   set ( LUA_PATH_DEFAULT ".\\?.lua;${LUA_LDIR}?.lua;${LUA_LDIR}?\\init.lua;${LUA_CDIR}?.lua;${LUA_CDIR}?\\init.lua" )
   set ( LUA_CPATH_DEFAULT ".\\?${CMAKE_SHARED_MODULE_SUFFIX};${LUA_CDIR}?${CMAKE_SHARED_MODULE_SUFFIX};${LUA_CDIR}loadall${CMAKE_SHARED_MODULE_SUFFIX}" )
 else ()
-  # Posix systems
+  # Posix systems (incl. Cygwin)
   option ( LUA_USE_POSIX "Use POSIX functionality." ON )
   option ( LUA_USE_DLOPEN "Use dynamic linker to load modules." ON )
   option ( LUA_USE_MKSTEMP "Use mkstep." ON )
@@ -136,6 +136,8 @@ install ( DIRECTORY doc etc test DESTINATION ${INSTALL_DATA} )
 install ( FILES README COPYRIGHT HISTORY DESTINATION ${INSTALL_DATA} )
 
 ## TESTS
+set(LUA lua) 
+
 add_lua_test ( test/bisect.lua )
 add_lua_test ( test/cf.lua )
 add_lua_test ( test/echo.lua )

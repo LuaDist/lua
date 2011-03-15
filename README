@@ -26,7 +26,7 @@ See HISTORY for a summary of changes since the last released version.
   In the LuaDist distribution the default makefiles have been replaced with
   CMake. To build Lua use the following approach.
   > mkdir _build && cd_build
-  > ccmake .. # Set up configuration
+  > ccmake .. # Set up configuration, alternatively use cmake-gui on Windows.
   > cmake --build . --target install
   
   The default makefile should work too, you just need to edit src/luaconf.h.orig
