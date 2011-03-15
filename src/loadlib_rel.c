@@ -51,16 +51,18 @@ static void setprogdir (lua_State *L);
 */
 #if defined(_WIN32) || defined(__CYGWIN__)
   #include <windows.h>
-  #define PATH_MAX MAX_PATH
+  #define _PATH_MAX MAX_PATH
+#else
+  #define _PATH_MAX PATH_MAX
 #endif
 
 static void setprogdir (lua_State *L) {
-  char progdir[PATH_MAX + 1];
+  char progdir[_PATH_MAX + 1];
   char *lb;
   int nsize = sizeof(progdir)/sizeof(char);
   int n;
 #if defined(__CYGWIN__)
-  char win_buff[PATH_MAX + 1];
+  char win_buff[_PATH_MAX + 1];
   GetModuleFileNameA(NULL, win_buff, nsize);
   cygwin_conv_to_posix_path(win_buff, progdir);
   n = strlen(progdir);

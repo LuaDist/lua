@@ -73,13 +73,12 @@ if ( LUA_USE_DLOPEN )
 endif ()
 
 if ( LUA_WIN )
-  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE )
   # Add extra rc files to the windows build
   if ( MSVC OR MINGW )
     set ( LUA_DEF src/lua.def )
     set ( LUA_DLL_RC src/lua_dll.rc )
     set ( LUA_RC src/lua.rc )
-    set ( LUAC_RC src/lua_simple.rc )
+    set ( LUAC_RC src/luac.rc )
   endif ()
 endif ()
 
