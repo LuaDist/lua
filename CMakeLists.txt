@@ -157,5 +157,3 @@ add_lua_test ( test/sort.lua )
 add_lua_test ( test/trace-calls.lua )
 add_lua_test ( test/trace-globals.lua )
 #add_lua_test ( test/xd.lua ) # Requires input
-
-
