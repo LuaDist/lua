@@ -679,7 +679,7 @@ LUALIB_API int luaopen_package (lua_State *L) {
   lua_pushvalue(L, -1);
   lua_replace(L, LUA_ENVIRONINDEX);
   /* create `loaders' table */
-  lua_createtable(L, 0, sizeof(loaders)/sizeof(loaders[0]) - 1);
+  lua_createtable(L, sizeof(loaders)/sizeof(loaders[0]) - 1, 0);
   /* fill it with pre-defined loaders */
   for (i=0; loaders[i] != NULL; i++) {
     lua_pushcfunction(L, loaders[i]);
