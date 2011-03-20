@@ -23,16 +23,21 @@ set ( LUA_MAXINPUT 512 CACHE NUMBER "Is the maximum length for an input line in 
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
 
+set ( LUA_DIRSEP "/" )
+set ( LUA_MODULE_SUFFIX ${CMAKE_SHARED_MODULE_SUFFIX} )
+set ( LUA_ROOT ${CMAKE_INSTALL_PREFIX} CACHE STRING "Destination from which modules will be resolved. See INSTALL_LMOD and INSTALL_CMOD.")
+set ( LUA_LDIR ${INSTALL_LMOD} )
+set ( LUA_CDIR ${INSTALL_CMOD} )
+
 if ( WIN32 AND NOT CYGWIN )
   # Windows systems
   option ( LUA_WIN "Windows specific build." ON )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ON )
   # Paths (Double escapes needed)
   set ( LUA_DIRSEP "\\\\" )
-  set ( LUA_LDIR "!\\\\lua\\\\" CACHE STRING "Pure Lua module location." )
-  set ( LUA_CDIR "!\\\\" CACHE STRING "Binary Lua module location."  )
-  set ( LUA_PATH_DEFAULT ".\\\\?.lua;${LUA_LDIR}?.lua;${LUA_LDIR}?\\\\init.lua;${LUA_CDIR}?.lua;${LUA_CDIR}?\\\\init.lua" )
-  set ( LUA_CPATH_DEFAULT ".\\\\?${CMAKE_SHARED_MODULE_SUFFIX};${LUA_CDIR}?${CMAKE_SHARED_MODULE_SUFFIX};${LUA_CDIR}loadall${CMAKE_SHARED_MODULE_SUFFIX}" )
+  string ( REPLACE "/" ${LUA_DIRSEP} LUA_ROOT ${LUA_ROOT} )
+  string ( REPLACE "/" ${LUA_DIRSEP} LUA_LDIR ${LUA_LDIR} )
+  string ( REPLACE "/" ${LUA_DIRSEP} LUA_CDIR ${LUA_CDIR} )
 else ()
   # Posix systems (incl. Cygwin)
   option ( LUA_USE_POSIX "Use POSIX functionality." ON )
@@ -41,12 +46,6 @@ else ()
   option ( LUA_USE_ISATTY "Use tty." ON )
   option ( LUA_USE_POPEN "Use popen." ON )
   option ( LUA_USE_ULONGJMP "Use ulongjmp" ON)
-  # Paths
-  set ( LUA_DIRSEP "/" )
-  set ( LUA_LDIR "${CMAKE_INSTALL_PREFIX}/share/lua/5.1/" CACHE STRING "Pure Lua module location." )
-  set ( LUA_CDIR "${CMAKE_INSTALL_PREFIX}/lib/lua/5.1/" CACHE STRING "Binary Lua module location."  )
-  set ( LUA_PATH_DEFAULT "./?.lua;${LUA_LDIR}?.lua;${LUA_LDIR}?/init.lua;${LUA_CDIR}?.lua;${LUA_CDIR}?/init.lua" )
-  set ( LUA_CPATH_DEFAULT "./?${CMAKE_SHARED_MODULE_SUFFIX};${LUA_CDIR}?${CMAKE_SHARED_MODULE_SUFFIX};${LUA_CDIR}loadall${CMAKE_SHARED_MODULE_SUFFIX}" )
 endif ()
 
 ## SETUP
