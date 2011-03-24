@@ -55,6 +55,9 @@ static void setprogdir (lua_State *L);
 #else
   #define _PATH_MAX PATH_MAX
 #endif
+#if defined(__linux__)
+  #include <unistd.h> /* readlink */
+#endif
 
 static void setprogdir (lua_State *L) {
   char progdir[_PATH_MAX + 1];
