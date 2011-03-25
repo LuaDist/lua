@@ -55,8 +55,14 @@ static void setprogdir (lua_State *L);
 #else
   #define _PATH_MAX PATH_MAX
 #endif
+
 #if defined(__linux__)
   #include <unistd.h> /* readlink */
+#endif
+
+#if defined(__APPLE__)
+  #include <sys/param.h>
+  #include <mach-o/dyld.h>
 #endif
 
 static void setprogdir (lua_State *L) {
@@ -77,6 +83,10 @@ static void setprogdir (lua_State *L) {
 #elif defined(__FreeBSD__)
   n = readlink("/proc/curproc/file", progdir, nsize);
   if (n > 0) progdir[n] = 0;
+#elif defined(__APPLE__)
+  uint32_t nsize_apple = nsize;
+  if (_NSGetExecutablePath(progdir, &nsize_apple) == 0)
+    n = strlen(progdir);
 #else
   // FALLBACK
   // Use 'lsof' ... should work on most UNIX systems (incl. OSX)
