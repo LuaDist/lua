@@ -22,12 +22,19 @@ set ( LUA_PROMPT2 ">> " CACHE STRING "Is the default continuation prompt used by
 set ( LUA_MAXINPUT 512 CACHE NUMBER "Is the maximum length for an input line in the stand-alone interpreter.")
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
-
+  
 set ( LUA_DIRSEP "/" )
 set ( LUA_MODULE_SUFFIX ${CMAKE_SHARED_MODULE_SUFFIX} )
-set ( LUA_ROOT ${CMAKE_INSTALL_PREFIX} CACHE STRING "Destination from which modules will be resolved. See INSTALL_LMOD and INSTALL_CMOD.")
 set ( LUA_LDIR ${INSTALL_LMOD} )
 set ( LUA_CDIR ${INSTALL_CMOD} )
+
+if ( LUA_USE_RELATIVE_LOADLIB )
+  # This will set up relative paths to lib
+  string ( REGEX REPLACE "[^!/]+" ".." LUA_ROOT "!/${INSTALL_BIN}/" )
+else ()
+  # Direct path to installation
+  set ( LUA_ROOT ${CMAKE_INSTALL_PREFIX} CACHE STRING "Destination from which modules will be resolved. See INSTALL_LMOD and INSTALL_CMOD.")
+endif ()
 
 if ( WIN32 AND NOT CYGWIN )
   # Windows systems
