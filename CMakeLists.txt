@@ -30,11 +30,14 @@ set ( LUA_CDIR ${INSTALL_CMOD} )
 
 if ( LUA_USE_RELATIVE_LOADLIB )
   # This will set up relative paths to lib
-  string ( REGEX REPLACE "[^!/]+" ".." LUA_ROOT "!/${INSTALL_BIN}/" )
+  string ( REGEX REPLACE "[^!/]+" ".." LUA_DIR "!/${INSTALL_BIN}/" )
 else ()
   # Direct path to installation
-  set ( LUA_ROOT ${CMAKE_INSTALL_PREFIX} CACHE STRING "Destination from which modules will be resolved. See INSTALL_LMOD and INSTALL_CMOD.")
+  set ( LUA_DIR ${CMAKE_INSTALL_PREFIX} CACHE STRING "Destination from which modules will be resolved. See INSTALL_LMOD and INSTALL_CMOD.")
 endif ()
+
+set ( LUA_PATH_DEFAULT "./?.lua;${LUA_DIR}${LUA_LDIR}/?.lua;${LUA_DIR}${LUA_LDIR}/?/init.lua" )
+set ( LUA_CPATH_DEFAULT "./?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/loadall${LUA_MODULE_SUFFIX}" )
 
 if ( WIN32 AND NOT CYGWIN )
   # Windows systems
@@ -42,9 +45,10 @@ if ( WIN32 AND NOT CYGWIN )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ON )
   # Paths (Double escapes needed)
   set ( LUA_DIRSEP "\\\\" )
-  string ( REPLACE "/" ${LUA_DIRSEP} LUA_ROOT ${LUA_ROOT} )
+  string ( REPLACE "/" ${LUA_DIRSEP} LUA_DIR ${LUA_DIR} )
   string ( REPLACE "/" ${LUA_DIRSEP} LUA_LDIR ${LUA_LDIR} )
   string ( REPLACE "/" ${LUA_DIRSEP} LUA_CDIR ${LUA_CDIR} )
+  
 else ()
   # Posix systems (incl. Cygwin)
   option ( LUA_USE_POSIX "Use POSIX functionality." ON )
