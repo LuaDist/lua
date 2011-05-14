@@ -91,7 +91,6 @@ macro ( install_lua_executable _name _source )
     find_package ( Lua51 REQUIRED )
     include_directories ( ${LUA_INCLUDE_DIR} )
 
-    get_filename_component ( _source_name ${_source} NAME_WE )
     set ( _wrapper ${CMAKE_CURRENT_BINARY_DIR}/${_name}.c )
     set ( _code 
 "// Not so simple executable wrapper for Lua apps
@@ -141,7 +140,7 @@ static int report (lua_State *L, int status) {
 if (status && !lua_isnil(L, -1)) {
   const char *msg = lua_tostring(L, -1)\;
   if (msg == NULL) msg = \"(error object is not a string)\"\;
-  l_message(\"${_name}\", msg)\;
+  l_message(\"${_source_name}\", msg)\;
   lua_pop(L, 1)\;
 }
 return status\;
@@ -184,10 +183,25 @@ L=lua_open()\;
 lua_gc(L, LUA_GCSTOP, 0)\;
 luaL_openlibs(L)\;
 lua_gc(L, LUA_GCRESTART, 0)\;
-getargs(L, argv, 0)\;
+int narg = getargs(L, argv, 0)\;
 lua_setglobal(L, \"arg\")\;
-// _PROGDIR global is only available when loadlib_rel.c is used in Lua
-int status = luaL_dostring(L, \"return dofile ( (_PROGDIR or '.') .. '/${_source_name}.lua')\")\;
+
+// Script
+char script[500] = \"./${_source_name}.lua\"\;
+lua_getglobal(L, \"_PROGDIR\")\;
+if (lua_isstring(L, -1)) {
+  sprintf( script, \"%s/${_source_name}.lua\", lua_tostring(L, -1))\;
+} 
+lua_pop(L, 1)\;
+
+// Run
+int status = luaL_loadfile(L, script)\;
+lua_insert(L, -(narg+1))\;
+if (status == 0)
+  status = docall(L, narg, 0)\;
+else
+  lua_pop(L, narg)\;
+
 report(L, status)\;
 lua_close(L)\;
 return status\;
@@ -377,13 +391,15 @@ return dofile '${TESTFILEABS}'
 		if ( ${ARGC} GREATER 1 )
 			set ( _testcurrentdir ${ARGV1} )
 			get_filename_component ( TESTCURRENTDIRABS ${_testcurrentdir} ABSOLUTE )
-			set ( TESTWRAPPERSOURCE
-"require 'lfs'
-lfs.chdir('${TESTCURRENTDIRABS}' )
-${TESTWRAPPERSOURCE}" )
+			# note: CMake 2.6 (unlike 2.8) lacks WORKING_DIRECTORY parameter.
+#old:
+#			set ( TESTWRAPPERSOURCE
+#"require 'lfs'; lfs.chdir('${TESTCURRENTDIRABS}' )
+#${TESTWRAPPERSOURCE}" )
+			set ( _pre ${CMAKE_COMMAND} -E chdir "${TESTCURRENTDIRABS}" )
 		endif ()
 		file ( WRITE ${TESTWRAPPER} ${TESTWRAPPERSOURCE})
-		add_test ( NAME ${TESTFILEBASE} COMMAND ${LUA} ${TESTWRAPPER} $<CONFIGURATION> )
+		add_test ( NAME ${TESTFILEBASE} COMMAND ${_pre} ${LUA} ${TESTWRAPPER} $<CONFIGURATION> )
 	endif ()
 	# see also http://gdcm.svn.sourceforge.net/viewvc/gdcm/Sandbox/CMakeModules/UsePythonTest.cmake
 endmacro ()
