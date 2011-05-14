@@ -365,13 +365,14 @@ endmacro ()
 
 # ADD_LUA_TEST
 # Runs Lua script `_testfile` under CTest tester.
-# Optional argument `_testcurrentdir` is current working directory to run test under
+# Optional named argument `WORKING_DIRECTORY` is current working directory to run test under
 # (defaults to ${CMAKE_CURRENT_BINARY_DIR}).
 # Both paths, if relative, are relative to ${CMAKE_CURRENT_SOURCE_DIR}.
 # Under LuaDist, set test=true in config.lua to enable testing.
-# USE: add_lua_test ( test/test1.lua [args...] )
+# USE: add_lua_test ( test/test1.lua [args...] [WORKING_DIRECTORY dir])
 macro ( add_lua_test _testfile )
 	if ( NOT SKIP_TESTING )
+		parse_arguments ( _ARG "WORKING_DIRECTORY" "" ${ARGN} )
 		include ( CTest )
 		find_program ( LUA NAMES lua lua.bat )
 		get_filename_component ( TESTFILEABS ${_testfile} ABSOLUTE )
@@ -389,15 +390,14 @@ arg[0] = '${TESTFILEABS}'
 table.remove(arg, 1)
 return assert(loadfile '${TESTFILEABS}')(unpack(arg))
 "		)
-		if ( ${ARGC} GREATER 1 )
-			set ( _testcurrentdir ${ARGV1} )
-			get_filename_component ( TESTCURRENTDIRABS ${_testcurrentdir} ABSOLUTE )
+		if ( _ARG_WORKING_DIRECTORY )
+			get_filename_component ( TESTCURRENTDIRABS ${_ARG_WORKING_DIRECTORY} ABSOLUTE )
 			# note: CMake 2.6 (unlike 2.8) lacks WORKING_DIRECTORY parameter.
 #old:		set ( TESTWRAPPERSOURCE "require 'lfs'; lfs.chdir('${TESTCURRENTDIRABS}' ) ${TESTWRAPPERSOURCE}" )
 			set ( _pre ${CMAKE_COMMAND} -E chdir "${TESTCURRENTDIRABS}" )
 		endif ()
 		file ( WRITE ${TESTWRAPPER} ${TESTWRAPPERSOURCE})
-		add_test ( NAME ${TESTFILEBASE} COMMAND ${_pre} ${LUA} ${TESTWRAPPER} $<CONFIGURATION> ${ARGN} )
+		add_test ( NAME ${TESTFILEBASE} COMMAND ${_pre} ${LUA} ${TESTWRAPPER} $<CONFIGURATION> ${_ARG_DEFAULT_ARGS} )
 	endif ()
 	# see also http://gdcm.svn.sourceforge.net/viewvc/gdcm/Sandbox/CMakeModules/UsePythonTest.cmake
 endmacro ()
