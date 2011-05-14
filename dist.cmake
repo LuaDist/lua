@@ -369,7 +369,7 @@ endmacro ()
 # (defaults to ${CMAKE_CURRENT_BINARY_DIR}).
 # Both paths, if relative, are relative to ${CMAKE_CURRENT_SOURCE_DIR}.
 # Under LuaDist, set test=true in config.lua to enable testing.
-# USE: add_lua_test ( test/test1.lua )
+# USE: add_lua_test ( test/test1.lua [args...] )
 macro ( add_lua_test _testfile )
 	if ( NOT SKIP_TESTING )
 		include ( CTest )
@@ -386,20 +386,18 @@ local sodir = '${CMAKE_CURRENT_BINARY_DIR}' .. (configuration == '' and '' or '/
 package.path  = sodir .. '/?.lua\;' .. sodir .. '/?.lua\;' .. package.path
 package.cpath = sodir .. '/?.so\;'  .. sodir .. '/?.dll\;' .. package.cpath
 arg[0] = '${TESTFILEABS}'
-return dofile '${TESTFILEABS}'
+table.remove(arg, 1)
+return assert(loadfile '${TESTFILEABS}')(unpack(arg))
 "		)
 		if ( ${ARGC} GREATER 1 )
 			set ( _testcurrentdir ${ARGV1} )
 			get_filename_component ( TESTCURRENTDIRABS ${_testcurrentdir} ABSOLUTE )
 			# note: CMake 2.6 (unlike 2.8) lacks WORKING_DIRECTORY parameter.
-#old:
-#			set ( TESTWRAPPERSOURCE
-#"require 'lfs'; lfs.chdir('${TESTCURRENTDIRABS}' )
-#${TESTWRAPPERSOURCE}" )
+#old:		set ( TESTWRAPPERSOURCE "require 'lfs'; lfs.chdir('${TESTCURRENTDIRABS}' ) ${TESTWRAPPERSOURCE}" )
 			set ( _pre ${CMAKE_COMMAND} -E chdir "${TESTCURRENTDIRABS}" )
 		endif ()
 		file ( WRITE ${TESTWRAPPER} ${TESTWRAPPERSOURCE})
-		add_test ( NAME ${TESTFILEBASE} COMMAND ${_pre} ${LUA} ${TESTWRAPPER} $<CONFIGURATION> )
+		add_test ( NAME ${TESTFILEBASE} COMMAND ${_pre} ${LUA} ${TESTWRAPPER} $<CONFIGURATION> ${ARGN} )
 	endif ()
 	# see also http://gdcm.svn.sourceforge.net/viewvc/gdcm/Sandbox/CMakeModules/UsePythonTest.cmake
 endmacro ()
