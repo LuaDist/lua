@@ -155,11 +155,15 @@ add_lua_test ( test/cf.lua )
 add_lua_test ( test/echo.lua )
 add_lua_test ( test/env.lua )
 add_lua_test ( test/factorial.lua )
-add_lua_test ( test/fib.lua )
+add_lua_test ( test/fib.lua 20 )
 add_lua_test ( test/fibfor.lua )
 #add_lua_test ( test/globals.lua ) # Requires input
 add_lua_test ( test/hello.lua )
-add_lua_test ( test/life.lua )
+file(READ test/life.lua _data)  # life.lua test, with reduced run-time.
+string(REPLACE "40,20" "20,15" _data "${_data}")
+string(REPLACE 2000 20 _data "${_data}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test/life-quick.lua "${_data}")
+add_lua_test ( ${CMAKE_CURRENT_BINARY_DIR}/test/life-quick.lua )
 #add_lua_test ( test/luac.lua ) # Requires input
 add_lua_test ( test/printf.lua )
 #add_lua_test ( test/readonly.lua ) # this is aimed to fail, modification is required
