@@ -167,7 +167,7 @@ add_lua_test ( ${CMAKE_CURRENT_BINARY_DIR}/test/life-quick.lua )
 #add_lua_test ( test/luac.lua ) # Requires input
 add_lua_test ( test/printf.lua )
 add_lua_test ( test/readonly.lua )
-set_property ( TEST readonly PROPERTY PASS_REGULAR_EXPRESSION "cannot redefine global variable `y'" )
+#set_property ( TEST readonly PROPERTY PASS_REGULAR_EXPRESSION "cannot redefine global variable `y'" )
 add_lua_test ( test/sieve.lua )
 add_lua_test ( test/sort.lua )
 #add_lua_test ( test/table.lua ) # Requires input
