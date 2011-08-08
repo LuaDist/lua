@@ -126,7 +126,7 @@ endif ()
 # Create dynamic library
 add_library ( liblua SHARED ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
 target_link_libraries ( liblua ${LIBS} )
-set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua51 CLEAN_DIRECT_OUTPUT 1 )
+set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 )
 
 # Create static library, this is needed to compile luac in the 5.1.x Lua series
 add_library ( liblua_static STATIC ${SRC_LIB} )
