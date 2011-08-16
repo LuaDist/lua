@@ -15,11 +15,12 @@ set ( LUA_CPATH "LUA_CPATH" CACHE STRING "Environment variable to use as package
 set ( LUA_INIT "LUA_INIT" CACHE STRING "Environment variable for initial script." )
 
 option ( LUA_ANSI "Use only ansi features." OFF )
-option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relative paths on posix systems." ON)
+option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relative paths on posix systems." ON )
+option ( LUA_COMPAT_ALL "Enable backwards compatibility options." ON )
 set ( LUA_IDSIZE 60 CACHE NUMBER "gives the maximum size for the description of the source." )
-set ( LUA_PROMPT "> " CACHE STRING "Is the default prompt used by stand-alone Lua." )
-set ( LUA_PROMPT2 ">> " CACHE STRING "Is the default continuation prompt used by stand-alone Lua." )
-set ( LUA_MAXINPUT 512 CACHE NUMBER "Is the maximum length for an input line in the stand-alone interpreter.")
+#set ( LUA_PROMPT "> " CACHE STRING "Is the default prompt used by stand-alone Lua." )
+#set ( LUA_PROMPT2 ">> " CACHE STRING "Is the default continuation prompt used by stand-alone Lua." )
+#set ( LUA_MAXINPUT 512 CACHE NUMBER "Is the maximum length for an input line in the stand-alone interpreter.")
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
   
@@ -58,6 +59,9 @@ else ()
   option ( LUA_USE_ISATTY "Use tty." ON )
   option ( LUA_USE_POPEN "Use popen." ON )
   option ( LUA_USE_ULONGJMP "Use ulongjmp" ON)
+  option ( LUA_USE_STRTODHEX "assume 'strtod' handles hexa formats" ON )
+  option ( LUA_USE_AFORMAT "assume 'printf' handles 'aA' specifiers" ON )
+  option ( LUA_USE_LONGLONG "assume support for long long" ON)
 endif ()
 
 ## SETUP
@@ -83,16 +87,6 @@ if ( LUA_USE_DLOPEN )
   list ( APPEND LIBS dl )
 endif ()
 
-if ( LUA_WIN )
-  # Add extra rc files to the windows build
-  if ( MSVC OR MINGW )
-    set ( LUA_DEF src/lua.def )
-    set ( LUA_DLL_RC src/lua_dll.rc )
-    set ( LUA_RC src/lua.rc )
-    set ( LUAC_RC src/luac.rc )
-  endif ()
-endif ()
-
 if ( LUA_USE_READLINE )
   # Add readline
   include_directories ( ${READLINE_INCLUDE_DIR} )
@@ -111,9 +105,41 @@ configure_file ( src/luaconf.h.in ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h )
 
 # Sources and headers
 include_directories ( src ${CMAKE_CURRENT_BINARY_DIR} )
-set ( SRC_LIB src/lapi.c src/lcode.c src/ldebug.c src/ldo.c src/ldump.c src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c src/lparser.c src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c src/lvm.c src/lzio.c src/lauxlib.c src/lbaselib.c src/ldblib.c src/liolib.c src/lmathlib.c src/loslib.c src/ltablib.c src/lstrlib.c src/linit.c )
+set ( SRC_CORE
+	src/lapi.c
+	src/lcode.c
+	src/lctype.c
+	src/ldebug.c
+	src/ldo.c
+	src/ldump.c
+	src/lfunc.c
+	src/lgc.c
+	src/llex.c
+	src/lmem.c
+	src/lobject.c
+	src/lopcodes.c
+	src/lparser.c
+	src/lstate.c
+	src/lstring.c
+	src/ltable.c
+	src/ltm.c
+	src/lundump.c
+	src/lvm.c
+	src/lzio.c)
+set ( SRC_LIB
+	src/lauxlib.c
+	src/lbaselib.c
+	src/lbitlib.c
+	src/lcorolib.c
+	src/ldblib.c
+	src/liolib.c
+	src/lmathlib.c
+	src/loslib.c
+	src/lstrlib.c
+	src/ltablib.c
+	src/linit.c)
 set ( SRC_LUA src/lua.c )
-set ( SRC_LUAC src/luac.c src/print.c )
+set ( SRC_LUAC src/luac.c )
 
 if ( LUA_USE_RELATIVE_LOADLIB )
   # Use modified loadlib
@@ -123,54 +149,22 @@ else ()
 endif ()
 
 ## BUILD
-# Create dynamic library
-add_library ( liblua SHARED ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
+# Create lua library
+add_library ( liblua SHARED ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
 target_link_libraries ( liblua ${LIBS} )
 set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 )
 
-# Create static library, this is needed to compile luac in the 5.1.x Lua series
-add_library ( liblua_static STATIC ${SRC_LIB} )
-target_link_libraries ( liblua_static ${LIBS} )
-
-add_executable ( lua ${SRC_LUA} ${LUA_RC} )
+add_executable ( lua ${SRC_LUA} src/lua.rc )
 target_link_libraries ( lua liblua )
 
-add_executable ( luac ${SRC_LUAC} ${LUAC_RC} )
-target_link_libraries ( luac liblua_static )
+add_executable ( luac ${SRC_LUAC} src/luac.rc )
+target_link_libraries ( luac liblua )
 
 install_executable ( lua luac )
 install_library ( liblua )
-install_data ( README COPYRIGHT HISTORY )
-install_lua_module ( strict etc/strict.lua )
-install_header (src/lua.h src/lualib.h src/lauxlib.h etc/lua.hpp ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h  )
+install_data ( README )
+#install_lua_module ( strict etc/strict.lua )
+install_header (src/lua.h src/lualib.h src/lauxlib.h ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h  )
 install_doc ( doc/ )
 install_foo ( etc/ )
-install_test ( test/ )
-
-## TESTS
-set(LUA lua) 
-
-add_lua_test ( test/bisect.lua )
-add_lua_test ( test/cf.lua )
-add_lua_test ( test/echo.lua )
-add_lua_test ( test/env.lua )
-add_lua_test ( test/factorial.lua )
-add_lua_test ( test/fib.lua 20 )
-add_lua_test ( test/fibfor.lua )
-#add_lua_test ( test/globals.lua ) # Requires input
-add_lua_test ( test/hello.lua )
-file(READ test/life.lua _data)  # life.lua test, with reduced run-time.
-string(REPLACE "40,20" "20,15" _data "${_data}")
-string(REPLACE 2000 20 _data "${_data}")
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test/life-quick.lua "${_data}")
-add_lua_test ( ${CMAKE_CURRENT_BINARY_DIR}/test/life-quick.lua )
-#add_lua_test ( test/luac.lua ) # Requires input
-add_lua_test ( test/printf.lua )
-add_lua_test ( test/readonly.lua )
-#set_property ( TEST readonly PROPERTY PASS_REGULAR_EXPRESSION "cannot redefine global variable `y'" )
-add_lua_test ( test/sieve.lua )
-add_lua_test ( test/sort.lua )
-#add_lua_test ( test/table.lua ) # Requires input
-add_lua_test ( test/trace-calls.lua )
-add_lua_test ( test/trace-globals.lua )
-#add_lua_test ( test/xd.lua ) # Requires input
+#install_test ( test/ )

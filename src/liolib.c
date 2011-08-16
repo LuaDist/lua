@@ -1,5 +1,5 @@
 /*
-** $Id: liolib.c,v 2.73.1.4 2010/05/14 15:33:51 roberto Exp $
+** $Id: liolib.c,v 2.101 2011/06/27 19:42:31 roberto Exp $
 ** Standard I/O (and system) library
 ** See Copyright Notice in lua.h
 */
@@ -20,29 +20,44 @@
 
 
 
-#define IO_INPUT	1
-#define IO_OUTPUT	2
+/*
+** lua_popen spawns a new process connected to the current one through
+** the file streams.
+*/
+#if !defined(lua_popen)	/* { */
+
+#if defined(LUA_USE_POPEN)	/* { */
+
+#define lua_popen(L,c,m)	((void)L, fflush(NULL), popen(c,m))
+#define lua_pclose(L,file)	((void)L, pclose(file))
+
+#elif defined(LUA_WIN)		/* }{ */
+
+#define lua_popen(L,c,m)		((void)L, _popen(c,m))
+#define lua_pclose(L,file)		((void)L, _pclose(file))
 
 
-static const char *const fnames[] = {"input", "output"};
+#else				/* }{ */
+
+#define lua_popen(L,c,m)		((void)((void)c, m),  \
+		luaL_error(L, LUA_QL("popen") " not supported"), (FILE*)0)
+#define lua_pclose(L,file)		((void)((void)L, file), -1)
 
 
-static int pushresult (lua_State *L, int i, const char *filename) {
-  int en = errno;  /* calls to Lua API may change this value */
-  if (i) {
-    lua_pushboolean(L, 1);
-    return 1;
-  }
-  else {
-    lua_pushnil(L);
-    if (filename)
-      lua_pushfstring(L, "%s: %s", filename, strerror(en));
-    else
-      lua_pushfstring(L, "%s", strerror(en));
-    lua_pushinteger(L, en);
-    return 3;
-  }
-}
+#endif				/* } */
+
+#endif			/* } */
+
+
+#define IO_PREFIX	"_IO_"
+#define IO_INPUT	(IO_PREFIX "input")
+#define IO_OUTPUT	(IO_PREFIX "output")
+
+
+typedef struct LStream {
+  FILE *f;  /* stream */
+  lua_CFunction closef;  /* to close stream (NULL for closed streams) */
+} LStream;
 
 
 static void fileerror (lua_State *L, int arg, const char *filename) {
@@ -51,17 +66,18 @@ static void fileerror (lua_State *L, int arg, const char *filename) {
 }
 
 
-#define tofilep(L)	((FILE **)luaL_checkudata(L, 1, LUA_FILEHANDLE))
+#define tolstream(L)	((LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE))
+
+#define isclosed(p)	((p)->closef == NULL)
 
 
 static int io_type (lua_State *L) {
-  void *ud;
+  LStream *p;
   luaL_checkany(L, 1);
-  ud = lua_touserdata(L, 1);
-  lua_getfield(L, LUA_REGISTRYINDEX, LUA_FILEHANDLE);
-  if (ud == NULL || !lua_getmetatable(L, 1) || !lua_rawequal(L, -2, -1))
+  p = (LStream *)luaL_testudata(L, 1, LUA_FILEHANDLE);
+  if (p == NULL)
     lua_pushnil(L);  /* not a file */
-  else if (*((FILE **)ud) == NULL)
+  else if (isclosed(p))
     lua_pushliteral(L, "closed file");
   else
     lua_pushliteral(L, "file");
@@ -69,13 +85,23 @@ static int io_type (lua_State *L) {
 }
 
 
-static FILE *tofile (lua_State *L) {
-  FILE **f = tofilep(L);
-  if (*f == NULL)
-    luaL_error(L, "attempt to use a closed file");
-  return *f;
+static int f_tostring (lua_State *L) {
+  LStream *p = tolstream(L);
+  if (isclosed(p))
+    lua_pushliteral(L, "file (closed)");
+  else
+    lua_pushfstring(L, "file (%p)", p->f);
+  return 1;
 }
 
+
+static FILE *tofile (lua_State *L) {
+  LStream *p = tolstream(L);
+  if (isclosed(p))
+    luaL_error(L, "attempt to use a closed file");
+  lua_assert(p->f);
+  return p->f;
+}
 
 
 /*
@@ -83,33 +109,35 @@ static FILE *tofile (lua_State *L) {
 ** before opening the actual file; so, if there is a memory error, the
 ** file is not left opened.
 */
-static FILE **newfile (lua_State *L) {
-  FILE **pf = (FILE **)lua_newuserdata(L, sizeof(FILE *));
-  *pf = NULL;  /* file handle is currently `closed' */
-  luaL_getmetatable(L, LUA_FILEHANDLE);
-  lua_setmetatable(L, -2);
-  return pf;
+static LStream *newprefile (lua_State *L) {
+  LStream *p = (LStream *)lua_newuserdata(L, sizeof(LStream));
+  p->closef = NULL;  /* mark file handle as 'closed' */
+  luaL_setmetatable(L, LUA_FILEHANDLE);
+  return p;
 }
 
 
-/*
-** function to (not) close the standard files stdin, stdout, and stderr
-*/
-static int io_noclose (lua_State *L) {
-  lua_pushnil(L);
-  lua_pushliteral(L, "cannot close standard file");
-  return 2;
+static int aux_close (lua_State *L) {
+  LStream *p = tolstream(L);
+  lua_CFunction cf = p->closef;
+  p->closef = NULL;  /* mark stream as closed */
+  return (*cf)(L);  /* close it */
 }
 
 
-/*
-** function to close 'popen' files
-*/
-static int io_pclose (lua_State *L) {
-  FILE **p = tofilep(L);
-  int ok = lua_pclose(L, *p);
-  *p = NULL;
-  return pushresult(L, ok, NULL);
+static int io_close (lua_State *L) {
+  if (lua_isnone(L, 1))  /* no argument? */
+    lua_getfield(L, LUA_REGISTRYINDEX, IO_OUTPUT);  /* use standard output */
+  tofile(L);  /* make sure argument is an open stream */
+  return aux_close(L);
+}
+
+
+static int f_gc (lua_State *L) {
+  LStream *p = tolstream(L);
+  if (!isclosed(p) && p->f != NULL)
+    aux_close(L);  /* ignore closed and incompletely open files */
+  return 0;
 }
 
 
@@ -117,103 +145,90 @@ static int io_pclose (lua_State *L) {
 ** function to close regular files
 */
 static int io_fclose (lua_State *L) {
-  FILE **p = tofilep(L);
-  int ok = (fclose(*p) == 0);
-  *p = NULL;
-  return pushresult(L, ok, NULL);
+  LStream *p = tolstream(L);
+  int res = fclose(p->f);
+  return luaL_fileresult(L, (res == 0), NULL);
 }
 
 
-static int aux_close (lua_State *L) {
-  lua_getfenv(L, 1);
-  lua_getfield(L, -1, "__close");
-  return (lua_tocfunction(L, -1))(L);
-}
-
-
-static int io_close (lua_State *L) {
-  if (lua_isnone(L, 1))
-    lua_rawgeti(L, LUA_ENVIRONINDEX, IO_OUTPUT);
-  tofile(L);  /* make sure argument is a file */
-  return aux_close(L);
-}
-
-
-static int io_gc (lua_State *L) {
-  FILE *f = *tofilep(L);
-  /* ignore closed files */
-  if (f != NULL)
-    aux_close(L);
-  return 0;
-}
-
-
-static int io_tostring (lua_State *L) {
-  FILE *f = *tofilep(L);
-  if (f == NULL)
-    lua_pushliteral(L, "file (closed)");
-  else
-    lua_pushfstring(L, "file (%p)", f);
-  return 1;
+static LStream *newfile (lua_State *L) {
+  LStream *p = newprefile(L);
+  p->f = NULL;
+  p->closef = &io_fclose;
+  return p;
 }
 
 
 static int io_open (lua_State *L) {
   const char *filename = luaL_checkstring(L, 1);
   const char *mode = luaL_optstring(L, 2, "r");
-  FILE **pf = newfile(L);
-  *pf = fopen(filename, mode);
-  return (*pf == NULL) ? pushresult(L, 0, filename) : 1;
+  LStream *p = newfile(L);
+  int i = 0;
+  /* check whether 'mode' matches '[rwa]%+?b?' */
+  if (!(mode[i] != '\0' && strchr("rwa", mode[i++]) != NULL &&
+       (mode[i] != '+' || ++i) &&  /* skip if char is '+' */
+       (mode[i] != 'b' || ++i) &&  /* skip if char is 'b' */
+       (mode[i] == '\0')))
+    return luaL_error(L, "invalid mode " LUA_QL("%s")
+                         " (should match " LUA_QL("[rwa]%%+?b?") ")", mode);
+  p->f = fopen(filename, mode);
+  return (p->f == NULL) ? luaL_fileresult(L, 0, filename) : 1;
 }
 
 
 /*
-** this function has a separated environment, which defines the
-** correct __close for 'popen' files
+** function to close 'popen' files
 */
+static int io_pclose (lua_State *L) {
+  LStream *p = tolstream(L);
+  return luaL_execresult(L, lua_pclose(L, p->f));
+}
+
+
 static int io_popen (lua_State *L) {
   const char *filename = luaL_checkstring(L, 1);
   const char *mode = luaL_optstring(L, 2, "r");
-  FILE **pf = newfile(L);
-  *pf = lua_popen(L, filename, mode);
-  return (*pf == NULL) ? pushresult(L, 0, filename) : 1;
+  LStream *p = newprefile(L);
+  p->f = lua_popen(L, filename, mode);
+  p->closef = &io_pclose;
+  return (p->f == NULL) ? luaL_fileresult(L, 0, filename) : 1;
 }
 
 
 static int io_tmpfile (lua_State *L) {
-  FILE **pf = newfile(L);
-  *pf = tmpfile();
-  return (*pf == NULL) ? pushresult(L, 0, NULL) : 1;
+  LStream *p = newfile(L);
+  p->f = tmpfile();
+  return (p->f == NULL) ? luaL_fileresult(L, 0, NULL) : 1;
 }
 
 
-static FILE *getiofile (lua_State *L, int findex) {
-  FILE *f;
-  lua_rawgeti(L, LUA_ENVIRONINDEX, findex);
-  f = *(FILE **)lua_touserdata(L, -1);
-  if (f == NULL)
-    luaL_error(L, "standard %s file is closed", fnames[findex - 1]);
-  return f;
+static FILE *getiofile (lua_State *L, const char *findex) {
+  LStream *p;
+  lua_getfield(L, LUA_REGISTRYINDEX, findex);
+  p = (LStream *)lua_touserdata(L, -1);
+  if (isclosed(p))
+    luaL_error(L, "standard %s file is closed", findex + strlen(IO_PREFIX));
+  return p->f;
 }
 
 
-static int g_iofile (lua_State *L, int f, const char *mode) {
+static int g_iofile (lua_State *L, const char *f, const char *mode) {
   if (!lua_isnoneornil(L, 1)) {
     const char *filename = lua_tostring(L, 1);
     if (filename) {
-      FILE **pf = newfile(L);
-      *pf = fopen(filename, mode);
-      if (*pf == NULL)
+      LStream *p = newfile(L);
+      p->f = fopen(filename, mode);
+      if (p->f == NULL)
         fileerror(L, 1, filename);
     }
     else {
       tofile(L);  /* check that it's a valid file handle */
       lua_pushvalue(L, 1);
     }
-    lua_rawseti(L, LUA_ENVIRONINDEX, f);
+    lua_setfield(L, LUA_REGISTRYINDEX, f);
   }
   /* return current value */
-  lua_rawgeti(L, LUA_ENVIRONINDEX, f);
+  lua_getfield(L, LUA_REGISTRYINDEX, f);
   return 1;
 }
 
@@ -231,35 +246,46 @@ static int io_output (lua_State *L) {
 static int io_readline (lua_State *L);
 
 
-static void aux_lines (lua_State *L, int idx, int toclose) {
-  lua_pushvalue(L, idx);
+static void aux_lines (lua_State *L, int toclose) {
+  int i;
+  int n = lua_gettop(L) - 1;  /* number of arguments to read */
+  /* ensure that arguments will fit here and into 'io_readline' stack */
+  luaL_argcheck(L, n <= LUA_MINSTACK - 3, LUA_MINSTACK - 3, "too many options");
+  lua_pushvalue(L, 1);  /* file handle */
+  lua_pushinteger(L, n);  /* number of arguments to read */
   lua_pushboolean(L, toclose);  /* close/not close file when finished */
-  lua_pushcclosure(L, io_readline, 2);
+  for (i = 1; i <= n; i++) lua_pushvalue(L, i + 1);  /* copy arguments */
+  lua_pushcclosure(L, io_readline, 3 + n);
 }
 
 
 static int f_lines (lua_State *L) {
   tofile(L);  /* check that it's a valid file handle */
-  aux_lines(L, 1, 0);
+  aux_lines(L, 0);
   return 1;
 }
 
 
 static int io_lines (lua_State *L) {
-  if (lua_isnoneornil(L, 1)) {  /* no arguments? */
-    /* will iterate over default input */
-    lua_rawgeti(L, LUA_ENVIRONINDEX, IO_INPUT);
-    return f_lines(L);
+  int toclose;
+  if (lua_isnone(L, 1)) lua_pushnil(L);  /* at least one argument */
+  if (lua_isnil(L, 1)) {  /* no file name? */
+    lua_getfield(L, LUA_REGISTRYINDEX, IO_INPUT);  /* get default input */
+    lua_replace(L, 1);  /* put it at index 1 */
+    tofile(L);  /* check that it's a valid file handle */
+    toclose = 0;  /* do not close it after iteration */
   }
-  else {
+  else {  /* open a new file */
     const char *filename = luaL_checkstring(L, 1);
-    FILE **pf = newfile(L);
-    *pf = fopen(filename, "r");
-    if (*pf == NULL)
+    LStream *p = newfile(L);
+    p->f = fopen(filename, "r");
+    if (p->f == NULL)
       fileerror(L, 1, filename);
-    aux_lines(L, lua_gettop(L), 1);
-    return 1;
+    lua_replace(L, 1);  /* put file at index 1 */
+    toclose = 1;  /* close it after iteration */
   }
+  aux_lines(L, toclose);
+  return 1;
 }
 
 
@@ -277,8 +303,8 @@ static int read_number (lua_State *L, FILE *f) {
     return 1;
   }
   else {
-    lua_pushnil(L);  /* "result" to be removed */
-    return 0;  /* read fails */
+   lua_pushnil(L);  /* "result" to be removed */
+   return 0;  /* read fails */
   }
 }
 
@@ -291,7 +317,7 @@ static int test_eof (lua_State *L, FILE *f) {
 }
 
 
-static int read_line (lua_State *L, FILE *f) {
+static int read_line (lua_State *L, FILE *f, int chop) {
   luaL_Buffer b;
   luaL_buffinit(L, &b);
   for (;;) {
@@ -299,13 +325,13 @@ static int read_line (lua_State *L, FILE *f) {
     char *p = luaL_prepbuffer(&b);
     if (fgets(p, LUAL_BUFFERSIZE, f) == NULL) {  /* eof? */
       luaL_pushresult(&b);  /* close buffer */
-      return (lua_objlen(L, -1) > 0);  /* check whether read something */
+      return (lua_rawlen(L, -1) > 0);  /* check whether read something */
     }
     l = strlen(p);
     if (l == 0 || p[l-1] != '\n')
       luaL_addsize(&b, l);
     else {
-      luaL_addsize(&b, l - 1);  /* do not include `eol' */
+      luaL_addsize(&b, l - chop);  /* chop 'eol' if needed */
       luaL_pushresult(&b);  /* close buffer */
       return 1;  /* read at least an `eol' */
     }
@@ -313,21 +339,34 @@ static int read_line (lua_State *L, FILE *f) {
 }
 
 
-static int read_chars (lua_State *L, FILE *f, size_t n) {
-  size_t rlen;  /* how much to read */
-  size_t nr;  /* number of chars actually read */
+#define MAX_SIZE_T	(~(size_t)0)
+
+static void read_all (lua_State *L, FILE *f) {
+  size_t rlen = LUAL_BUFFERSIZE;  /* how much to read in each cycle */
   luaL_Buffer b;
   luaL_buffinit(L, &b);
-  rlen = LUAL_BUFFERSIZE;  /* try to read that much each time */
-  do {
-    char *p = luaL_prepbuffer(&b);
-    if (rlen > n) rlen = n;  /* cannot read more than asked */
-    nr = fread(p, sizeof(char), rlen, f);
+  for (;;) {
+    char *p = luaL_prepbuffsize(&b, rlen);
+    size_t nr = fread(p, sizeof(char), rlen, f);
     luaL_addsize(&b, nr);
-    n -= nr;  /* still have to read `n' chars */
-  } while (n > 0 && nr == rlen);  /* until end of count or eof */
+    if (nr < rlen) break;  /* eof? */
+    else if (rlen <= (MAX_SIZE_T / 4))  /* avoid buffers too large */
+      rlen *= 2;  /* double buffer size at each iteration */
+  }
   luaL_pushresult(&b);  /* close buffer */
-  return (n == 0 || lua_objlen(L, -1) > 0);
+}
+
+
+static int read_chars (lua_State *L, FILE *f, size_t n) {
+  size_t nr;  /* number of chars actually read */
+  char *p;
+  luaL_Buffer b;
+  luaL_buffinit(L, &b);
+  p = luaL_prepbuffsize(&b, n);  /* prepare buffer to read whole block */
+  nr = fread(p, sizeof(char), n, f);  /* try to read 'n' chars */
+  luaL_addsize(&b, nr);
+  luaL_pushresult(&b);  /* close buffer */
+  return (nr > 0);  /* true iff read something */
 }
 
 
@@ -337,7 +376,7 @@ static int g_read (lua_State *L, FILE *f, int first) {
   int n;
   clearerr(f);
   if (nargs == 0) {  /* no arguments? */
-    success = read_line(L, f);
+    success = read_line(L, f, 1);
     n = first+1;  /* to return 1 result */
   }
   else {  /* ensure stack space for all results and for auxlib's buffer */
@@ -356,10 +395,13 @@ static int g_read (lua_State *L, FILE *f, int first) {
             success = read_number(L, f);
             break;
           case 'l':  /* line */
-            success = read_line(L, f);
+            success = read_line(L, f, 1);
+            break;
+          case 'L':  /* line with end-of-line */
+            success = read_line(L, f, 0);
             break;
           case 'a':  /* file */
-            read_chars(L, f, ~((size_t)0));  /* read MAX_SIZE_T chars */
+            read_all(L, f);  /* read entire file */
             success = 1; /* always success */
             break;
           default:
@@ -369,7 +411,7 @@ static int g_read (lua_State *L, FILE *f, int first) {
     }
   }
   if (ferror(f))
-    return pushresult(L, 0, NULL);
+    return luaL_fileresult(L, 0, NULL);
   if (!success) {
     lua_pop(L, 1);  /* remove last result */
     lua_pushnil(L);  /* push nil instead */
@@ -389,16 +431,23 @@ static int f_read (lua_State *L) {
 
 
 static int io_readline (lua_State *L) {
-  FILE *f = *(FILE **)lua_touserdata(L, lua_upvalueindex(1));
-  int sucess;
-  if (f == NULL)  /* file is already closed? */
-    luaL_error(L, "file is already closed");
-  sucess = read_line(L, f);
-  if (ferror(f))
-    return luaL_error(L, "%s", strerror(errno));
-  if (sucess) return 1;
-  else {  /* EOF */
-    if (lua_toboolean(L, lua_upvalueindex(2))) {  /* generator created file? */
+  LStream *p = (LStream *)lua_touserdata(L, lua_upvalueindex(1));
+  int i;
+  int n = (int)lua_tointeger(L, lua_upvalueindex(2));
+  if (isclosed(p))  /* file is already closed? */
+    return luaL_error(L, "file is already closed");
+  lua_settop(L , 1);
+  for (i = 1; i <= n; i++)  /* push arguments to 'g_read' */
+    lua_pushvalue(L, lua_upvalueindex(3 + i));
+  n = g_read(L, p->f, 2);  /* 'n' is number of results */
+  lua_assert(n > 0);  /* should return at least a nil */
+  if (!lua_isnil(L, -n))  /* read at least one value? */
+    return n;  /* return them */
+  else {  /* first result is nil: EOF or error */
+    if (!lua_isnil(L, -1))  /* is there error information? */
+      return luaL_error(L, "%s", lua_tostring(L, -1));  /* error */
+    /* else EOF */
+    if (lua_toboolean(L, lua_upvalueindex(3))) {  /* generator created file? */
       lua_settop(L, 0);
       lua_pushvalue(L, lua_upvalueindex(1));
       aux_close(L);  /* close it */
@@ -411,7 +460,7 @@ static int io_readline (lua_State *L) {
 
 
 static int g_write (lua_State *L, FILE *f, int arg) {
-  int nargs = lua_gettop(L) - 1;
+  int nargs = lua_gettop(L) - arg;
   int status = 1;
   for (; nargs--; arg++) {
     if (lua_type(L, arg) == LUA_TNUMBER) {
@@ -425,7 +474,8 @@ static int g_write (lua_State *L, FILE *f, int arg) {
       status = status && (fwrite(s, sizeof(char), l, f) == l);
     }
   }
-  return pushresult(L, status, NULL);
+  if (status) return 1;  /* file handle already on stack top */
+  else return luaL_fileresult(L, status, NULL);
 }
 
 
@@ -435,7 +485,9 @@ static int io_write (lua_State *L) {
 
 
 static int f_write (lua_State *L) {
-  return g_write(L, tofile(L), 2);
+  FILE *f = tofile(L);
+  lua_pushvalue(L, 1);  /* push file at the stack top (to be returned) */
+  return g_write(L, f, 2);
 }
 
 
@@ -447,7 +499,7 @@ static int f_seek (lua_State *L) {
   long offset = luaL_optlong(L, 3, 0);
   op = fseek(f, offset, mode[op]);
   if (op)
-    return pushresult(L, 0, NULL);  /* error */
+    return luaL_fileresult(L, 0, NULL);  /* error */
   else {
     lua_pushinteger(L, ftell(f));
     return 1;
@@ -462,21 +514,24 @@ static int f_setvbuf (lua_State *L) {
   int op = luaL_checkoption(L, 2, NULL, modenames);
   lua_Integer sz = luaL_optinteger(L, 3, LUAL_BUFFERSIZE);
   int res = setvbuf(f, NULL, mode[op], sz);
-  return pushresult(L, res == 0, NULL);
+  return luaL_fileresult(L, res == 0, NULL);
 }
 
 
 
 static int io_flush (lua_State *L) {
-  return pushresult(L, fflush(getiofile(L, IO_OUTPUT)) == 0, NULL);
+  return luaL_fileresult(L, fflush(getiofile(L, IO_OUTPUT)) == 0, NULL);
 }
 
 
 static int f_flush (lua_State *L) {
-  return pushresult(L, fflush(tofile(L)) == 0, NULL);
+  return luaL_fileresult(L, fflush(tofile(L)) == 0, NULL);
 }
 
 
+/*
+** functions for 'io' library
+*/
 static const luaL_Reg iolib[] = {
   {"close", io_close},
   {"flush", io_flush},
@@ -493,6 +548,9 @@ static const luaL_Reg iolib[] = {
 };
 
 
+/*
+** methods for file handles
+*/
 static const luaL_Reg flib[] = {
   {"close", io_close},
   {"flush", f_flush},
@@ -501,8 +559,8 @@ static const luaL_Reg flib[] = {
   {"seek", f_seek},
   {"setvbuf", f_setvbuf},
   {"write", f_write},
-  {"__gc", io_gc},
-  {"__tostring", io_tostring},
+  {"__gc", f_gc},
+  {"__tostring", f_tostring},
   {NULL, NULL}
 };
 
@@ -511,46 +569,43 @@ static void createmeta (lua_State *L) {
   luaL_newmetatable(L, LUA_FILEHANDLE);  /* create metatable for file handles */
   lua_pushvalue(L, -1);  /* push metatable */
   lua_setfield(L, -2, "__index");  /* metatable.__index = metatable */
-  luaL_register(L, NULL, flib);  /* file methods */
+  luaL_setfuncs(L, flib, 0);  /* add file methods to new metatable */
+  lua_pop(L, 1);  /* pop new metatable */
 }
 
 
-static void createstdfile (lua_State *L, FILE *f, int k, const char *fname) {
-  *newfile(L) = f;
-  if (k > 0) {
+/*
+** function to (not) close the standard files stdin, stdout, and stderr
+*/
+static int io_noclose (lua_State *L) {
+  LStream *p = tolstream(L);
+  p->closef = &io_noclose;  /* keep file opened */
+  lua_pushnil(L);
+  lua_pushliteral(L, "cannot close standard file");
+  return 2;
+}
+
+
+static void createstdfile (lua_State *L, FILE *f, const char *k,
+                           const char *fname) {
+  LStream *p = newprefile(L);
+  p->f = f;
+  p->closef = &io_noclose;
+  if (k != NULL) {
     lua_pushvalue(L, -1);
-    lua_rawseti(L, LUA_ENVIRONINDEX, k);
+    lua_setfield(L, LUA_REGISTRYINDEX, k);  /* add file to registry */
   }
-  lua_pushvalue(L, -2);  /* copy environment */
-  lua_setfenv(L, -2);  /* set it */
-  lua_setfield(L, -3, fname);
+  lua_setfield(L, -2, fname);  /* add file to module */
 }
 
 
-static void newfenv (lua_State *L, lua_CFunction cls) {
-  lua_createtable(L, 0, 1);
-  lua_pushcfunction(L, cls);
-  lua_setfield(L, -2, "__close");
-}
-
-
-LUALIB_API int luaopen_io (lua_State *L) {
+LUAMOD_API int luaopen_io (lua_State *L) {
+  luaL_newlib(L, iolib);  /* new module */
   createmeta(L);
-  /* create (private) environment (with fields IO_INPUT, IO_OUTPUT, __close) */
-  newfenv(L, io_fclose);
-  lua_replace(L, LUA_ENVIRONINDEX);
-  /* open library */
-  luaL_register(L, LUA_IOLIBNAME, iolib);
   /* create (and set) default files */
-  newfenv(L, io_noclose);  /* close function for default files */
   createstdfile(L, stdin, IO_INPUT, "stdin");
   createstdfile(L, stdout, IO_OUTPUT, "stdout");
-  createstdfile(L, stderr, 0, "stderr");
-  lua_pop(L, 1);  /* pop environment for default files */
-  lua_getfield(L, -1, "popen");
-  newfenv(L, io_pclose);  /* create environment for 'popen' */
-  lua_setfenv(L, -2);  /* set fenv for 'popen' */
-  lua_pop(L, 1);  /* pop 'popen' */
+  createstdfile(L, stderr, NULL, "stderr");
   return 1;
 }
 
