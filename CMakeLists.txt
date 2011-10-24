@@ -36,12 +36,13 @@ else ()
   set ( LUA_DIR ${CMAKE_INSTALL_PREFIX} CACHE STRING "Destination from which modules will be resolved. See INSTALL_LMOD and INSTALL_CMOD.")
 endif ()
 
-set ( LUA_PATH_DEFAULT "./?.lua;${LUA_DIR}${LUA_LDIR}/?.lua;${LUA_DIR}${LUA_LDIR}/?/init.lua" )
+set ( LUA_PATH_DEFAULT "./?.lua;${LUA_DIR}${LUA_LDIR}/?.lua;${LUA_DIR}${LUA_LDIR}/?/init.lua;./?/init.lua" )
 set ( LUA_CPATH_DEFAULT "./?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/loadall${LUA_MODULE_SUFFIX}" )
 
 if ( WIN32 AND NOT CYGWIN )
   # Windows systems
   option ( LUA_WIN "Windows specific build." ON )
+  option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON)
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ON )
   # Paths (Double escapes needed)
   set ( LUA_DIRSEP "\\\\" )
@@ -134,6 +135,13 @@ target_link_libraries ( liblua_static ${LIBS} )
 
 add_executable ( lua ${SRC_LUA} ${LUA_RC} )
 target_link_libraries ( lua liblua )
+
+# On windows a variant of the lua interpreter without console output needs to be built
+if(LUA_BUILD_WLUA)
+  add_executable ( wlua WIN32 ${SRC_LUA} ${LUA_RC} )
+  target_link_libraries ( wlua liblua )  
+  install_executable ( wlua )
+endif()
 
 add_executable ( luac ${SRC_LUAC} ${LUAC_RC} )
 target_link_libraries ( luac liblua_static )
