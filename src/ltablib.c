@@ -1,5 +1,5 @@
 /*
-** $Id: ltablib.c,v 1.61 2011/07/05 12:49:35 roberto Exp $
+** $Id: ltablib.c,v 1.63 2011/11/28 17:26:30 roberto Exp $
 ** Library for Table Manipulation
 ** See Copyright Notice in lua.h
 */
@@ -86,7 +86,7 @@ static void addfield (lua_State *L, luaL_Buffer *b, int i) {
   if (!lua_isstring(L, -1))
     luaL_error(L, "invalid value (%s) at index %d in table for "
                   LUA_QL("concat"), luaL_typename(L, -1), i);
-    luaL_addvalue(b);
+  luaL_addvalue(b);
 }
 
 
@@ -129,8 +129,7 @@ static int pack (lua_State *L) {
     for (i = n; i >= 2; i--)  /* assign other elements */
       lua_rawseti(L, 1, i);
   }
-  lua_pushinteger(L, n);
-  return 2;  /* return table and number of elements */
+  return 1;  /* return table */
 }
 
 

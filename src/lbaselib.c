@@ -1,5 +1,5 @@
 /*
-** $Id: lbaselib.c,v 1.264 2011/07/05 12:49:35 roberto Exp $
+** $Id: lbaselib.c,v 1.273 2011/11/30 13:03:24 roberto Exp $
 ** Basic library
 ** See Copyright Notice in lua.h
 */
@@ -46,20 +46,22 @@ static int luaB_print (lua_State *L) {
 #define SPACECHARS	" \f\n\r\t\v"
 
 static int luaB_tonumber (lua_State *L) {
-  int base = luaL_optint(L, 2, 10);
-  luaL_argcheck(L, 2 <= base && base <= 36, 2, "base out of range");
-  if (base == 10) {  /* standard conversion */
-    luaL_checkany(L, 1);
-    if (lua_isnumber(L, 1)) {
-      lua_pushnumber(L, lua_tonumber(L, 1));
+  if (lua_isnoneornil(L, 2)) {  /* standard conversion */
+    int isnum;
+    lua_Number n = lua_tonumberx(L, 1, &isnum);
+    if (isnum) {
+      lua_pushnumber(L, n);
       return 1;
-    }  /* else not a number */
+    }  /* else not a number; must be something */
+    luaL_checkany(L, 1);
   }
   else {
     size_t l;
     const char *s = luaL_checklstring(L, 1, &l);
     const char *e = s + l;  /* end point for 's' */
+    int base = luaL_checkint(L, 2);
     int neg = 0;
+    luaL_argcheck(L, 2 <= base && base <= 36, 2, "base out of range");
     s += strspn(s, SPACECHARS);  /* skip initial spaces */
     if (*s == '-') { s++; neg = 1; }  /* handle signal */
     else if (*s == '+') s++;
@@ -158,7 +160,7 @@ static int luaB_rawset (lua_State *L) {
 static int luaB_collectgarbage (lua_State *L) {
   static const char *const opts[] = {"stop", "restart", "collect",
     "count", "step", "setpause", "setstepmul",
-    "setmajorinc", "isrunning", "gen", "inc", NULL};
+    "setmajorinc", "isrunning", "generational", "incremental", NULL};
   static const int optsnum[] = {LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
     LUA_GCCOUNT, LUA_GCSTEP, LUA_GCSETPAUSE, LUA_GCSETSTEPMUL,
     LUA_GCSETMAJORINC, LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC};
@@ -253,7 +255,14 @@ static int load_aux (lua_State *L, int status) {
 
 static int luaB_loadfile (lua_State *L) {
   const char *fname = luaL_optstring(L, 1, NULL);
-  return load_aux(L, luaL_loadfile(L, fname));
+  const char *mode = luaL_optstring(L, 2, NULL);
+  int env = !lua_isnone(L, 3);  /* 'env' parameter? */
+  int status = luaL_loadfilex(L, fname, mode);
+  if (status == LUA_OK && env) {  /* 'env' parameter? */
+    lua_pushvalue(L, 3);
+    lua_setupvalue(L, -2, 1);  /* set it as 1st upvalue of loaded chunk */
+  }
+  return load_aux(L, status);
 }
 
 
@@ -262,26 +271,6 @@ static int luaB_loadfile (lua_State *L) {
 ** Generic Read function
 ** =======================================================
 */
-
-
-typedef struct {
-char c;
-  const char *mode;
-} loaddata;
-
-
-/*
-** check whether a chunk (prefix in 's') satisfies given 'mode'
-** ('t' for text, 'b' for binary). Returns error message (also
-** pushed on the stack) in case of errors.
-*/
-static const char *checkrights (lua_State *L, const char *mode, const char *s) {
-  if (strchr(mode, 'b') == NULL && *s == LUA_SIGNATURE[0])
-    return lua_pushstring(L, "attempt to load a binary chunk");
-  if (strchr(mode, 't') == NULL && *s != LUA_SIGNATURE[0])
-    return lua_pushstring(L, "attempt to load a text chunk");
-  return NULL;  /* chunk in allowed format */
-}
 
 
 /*
@@ -299,8 +288,7 @@ static const char *checkrights (lua_State *L, const char *mode, const char *s) {
 ** reserved slot inside the stack.
 */
 static const char *generic_reader (lua_State *L, void *ud, size_t *size) {
-  const char *s;
-  loaddata *ld = (loaddata *)ud;
+  (void)(ud);  /* not used */
   luaL_checkstack(L, 2, "too many nested functions");
   lua_pushvalue(L, 1);  /* get function */
   lua_call(L, 0, 1);  /* call it */
@@ -308,19 +296,10 @@ static const char *generic_reader (lua_State *L, void *ud, size_t *size) {
     *size = 0;
     return NULL;
   }
-  else if ((s = lua_tostring(L, -1)) != NULL) {
-    if (ld->mode != NULL) {  /* first time? */
-      s = checkrights(L, ld->mode, s);  /* check mode */
-      ld->mode = NULL;  /* to avoid further checks */
-      if (s) luaL_error(L, s);
-    }
-    lua_replace(L, RESERVEDSLOT);  /* save string in reserved slot */
-    return lua_tolstring(L, RESERVEDSLOT, size);
-  }
-  else {
+  else if (!lua_isstring(L, -1))
     luaL_error(L, "reader function must return a string");
-    return NULL;  /* to avoid warnings */
-  }
+  lua_replace(L, RESERVEDSLOT);  /* save string in reserved slot */
+  return lua_tolstring(L, RESERVEDSLOT, size);
 }
 
 
@@ -332,16 +311,13 @@ static int luaB_load (lua_State *L) {
   const char *mode = luaL_optstring(L, 3, "bt");
   if (s != NULL) {  /* loading a string? */
     const char *chunkname = luaL_optstring(L, 2, s);
-    status = (checkrights(L, mode, s) != NULL)
-           || luaL_loadbuffer(L, s, l, chunkname);
+    status = luaL_loadbufferx(L, s, l, chunkname, mode);
   }
   else {  /* loading from a reader function */
     const char *chunkname = luaL_optstring(L, 2, "=(load)");
-    loaddata ld;
-    ld.mode = mode;
     luaL_checktype(L, 1, LUA_TFUNCTION);
     lua_settop(L, RESERVEDSLOT);  /* create reserved slot */
-    status = lua_load(L, generic_reader, &ld, chunkname);
+    status = lua_load(L, generic_reader, NULL, chunkname, mode);
   }
   if (status == LUA_OK && top >= 4) {  /* is there an 'env' argument */
     lua_pushvalue(L, 4);  /* environment for loaded function */
@@ -390,27 +366,32 @@ static int luaB_select (lua_State *L) {
 }
 
 
-static int pcallcont (lua_State *L) {
-  int errfunc = 0;  /* =0 to avoid warnings */
-  int status = lua_getctx(L, &errfunc);
-  lua_assert(status != LUA_OK);
-  lua_pushboolean(L, (status == LUA_YIELD));  /* first result (status) */
-  if (errfunc)  /* came from xpcall? */
-    lua_replace(L, 1);  /* put first result in place of error function */
-  else  /* came from pcall */
-    lua_insert(L, 1);  /* open space for first result */
+static int finishpcall (lua_State *L, int status) {
+  if (!lua_checkstack(L, 1)) {  /* no space for extra boolean? */
+    lua_settop(L, 0);  /* create space for return values */
+    lua_pushboolean(L, 0);
+    lua_pushstring(L, "stack overflow");
+    return 2;  /* return false, msg */
+  }
+  lua_pushboolean(L, status);  /* first result (status) */
+  lua_replace(L, 1);  /* put first result in first slot */
   return lua_gettop(L);
+}
+
+
+static int pcallcont (lua_State *L) {
+  int status = lua_getctx(L, NULL);
+  return finishpcall(L, (status == LUA_YIELD));
 }
 
 
 static int luaB_pcall (lua_State *L) {
   int status;
   luaL_checkany(L, 1);
-  status = lua_pcallk(L, lua_gettop(L) - 1, LUA_MULTRET, 0, 0, pcallcont);
-  luaL_checkstack(L, 1, NULL);
-  lua_pushboolean(L, (status == LUA_OK));
-  lua_insert(L, 1);
-  return lua_gettop(L);  /* return status + all results */
+  lua_pushnil(L);
+  lua_insert(L, 1);  /* create space for status result */
+  status = lua_pcallk(L, lua_gettop(L) - 2, LUA_MULTRET, 0, 0, pcallcont);
+  return finishpcall(L, (status == LUA_OK));
 }
 
 
@@ -421,11 +402,8 @@ static int luaB_xpcall (lua_State *L) {
   lua_pushvalue(L, 1);  /* exchange function... */
   lua_copy(L, 2, 1);  /* ...and error handler */
   lua_replace(L, 2);
-  status = lua_pcallk(L, n - 2, LUA_MULTRET, 1, 1, pcallcont);
-  luaL_checkstack(L, 1, NULL);
-  lua_pushboolean(L, (status == LUA_OK));
-  lua_replace(L, 1);
-  return lua_gettop(L);  /* return status + all results */
+  status = lua_pcallk(L, n - 2, LUA_MULTRET, 1, 0, pcallcont);
+  return finishpcall(L, (status == LUA_OK));
 }
 
 

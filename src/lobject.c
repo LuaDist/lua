@@ -1,5 +1,5 @@
 /*
-** $Id: lobject.c,v 2.52 2011/06/24 12:25:02 roberto Exp $
+** $Id: lobject.c,v 2.55 2011/11/30 19:30:16 roberto Exp $
 ** Some generic functions over Lua objects
 ** See Copyright Notice in lua.h
 */
@@ -33,7 +33,7 @@ LUAI_DDEF const TValue luaO_nilobject_ = {NILCONSTANT};
 ** (eeeeexxx), where the real value is (1xxx) * 2^(eeeee - 1) if
 ** eeeee != 0 and (xxx) otherwise.
 */
-int luaO_int2fb (lu_int32 x) {
+int luaO_int2fb (unsigned int x) {
   int e = 0;  /* exponent */
   if (x < 8) return x;
   while (x >= 0x10) {
@@ -103,8 +103,8 @@ static int isneg (const char **s) {
 
 
 static lua_Number readhexa (const char **s, lua_Number r, int *count) {
-  while (lisxdigit(cast_uchar(**s))) {  /* read integer part */
-    r = (r * 16.0) + cast_num(luaO_hexavalue(cast_uchar(*(*s)++)));
+  for (; lisxdigit(cast_uchar(**s)); (*s)++) {  /* read integer part */
+    r = (r * 16.0) + cast_num(luaO_hexavalue(cast_uchar(**s)));
     (*count)++;
   }
   return r;
@@ -157,7 +157,9 @@ static lua_Number lua_strx2number (const char *s, char **endptr) {
 
 int luaO_str2d (const char *s, size_t len, lua_Number *result) {
   char *endptr;
-  if (strpbrk(s, "xX"))  /* hexa? */
+  if (strpbrk(s, "nN"))  /* reject 'inf' and 'nan' */
+    return 0;
+  else if (strpbrk(s, "xX"))  /* hexa? */
     *result = lua_strx2number(s, &endptr);
   else
     *result = lua_str2number(s, &endptr);
@@ -219,7 +221,6 @@ const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
         luaG_runerror(L,
             "invalid option " LUA_QL("%%%c") " to " LUA_QL("lua_pushfstring"),
             *(e + 1));
-        break;
       }
     }
     n += 2;

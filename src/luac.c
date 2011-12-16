@@ -1,5 +1,5 @@
 /*
-** $Id: luac.c,v 1.67 2011/06/21 12:29:00 lhf Exp $
+** $Id: luac.c,v 1.69 2011/11/29 17:46:33 lhf Exp $
 ** Lua compiler (saves bytecodes to files; also list bytecodes)
 ** See Copyright Notice in lua.h
 */
@@ -53,7 +53,7 @@ static void usage(const char* message)
  fprintf(stderr,
   "usage: %s [options] [filenames]\n"
   "Available options are:\n"
-  "  -l       list\n"
+  "  -l       list (use -l -l for full listing)\n"
   "  -o name  output to file " LUA_QL("name") " (default is \"%s\")\n"
   "  -p       parse only\n"
   "  -s       strip debug information\n"
@@ -141,7 +141,7 @@ static const Proto* combine(lua_State* L, int n)
  {
   Proto* f;
   int i=n;
-  if (lua_load(L,reader,&i,"=(" PROGNAME ")")!=LUA_OK) fatal(lua_tostring(L,-1));
+  if (lua_load(L,reader,&i,"=(" PROGNAME ")",NULL)!=LUA_OK) fatal(lua_tostring(L,-1));
   f=toproto(L,-1);
   for (i=0; i<n; i++)
   {
@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
 }
 
 /*
-** $Id: print.c,v 1.67 2011/05/06 13:37:15 lhf Exp $
+** $Id: print.c,v 1.68 2011/09/30 10:21:20 lhf Exp $
 ** print bytecodes
 ** See Copyright Notice in lua.h
 */
@@ -218,7 +218,6 @@ int main(int argc, char* argv[])
 #include "lobject.h"
 #include "lopcodes.h"
 
-#define Sizeof(x)	((int)sizeof(x))
 #define VOID(p)		((const void*)(p))
 
 static void PrintString(const TString* ts)
