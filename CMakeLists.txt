@@ -157,8 +157,8 @@ set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 
 add_executable ( lua ${SRC_LUA} src/lua.rc )
 target_link_libraries ( lua liblua )
 
-add_executable ( luac ${SRC_LUAC} src/luac.rc )
-target_link_libraries ( luac liblua )
+add_executable ( luac ${SRC_CORE} ${SRC_LIB} ${SRC_LUAC} src/luac.rc )
+target_link_libraries ( luac ${LIBS} )
 
 install_executable ( lua luac )
 install_library ( liblua )
