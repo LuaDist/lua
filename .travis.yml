@@ -1,0 +1,10 @@
+language: erlang # Not really ...
+
+install:
+ - sudo apt-get install cmake
+
+script:
+ - mkdir _build && cd _build
+ - cmake .. -DCMAKE_INSTALL_PREFIX=../install
+ - cmake --build . --target install
+ - ctest .
