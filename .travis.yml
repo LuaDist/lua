@@ -19,7 +19,7 @@ matrix:
 
 # We need CMake and LuaDist
 install:
-  - export MODULE='basename $PWD'
+  - export MODULE=`basename $PWD`
   - sudo apt-get install cmake
   - git clone git://github.com/LuaDist/bootstrap.git _luadist
   - cd _luadist
