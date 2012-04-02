@@ -1,10 +1,50 @@
-language: erlang # Not really ...
+#
+# LuaDist Travis-CI Hook
+#
 
+# Since CMake is not directly supported we use erlang VMs
+language: erlang
+
+# Try using multiple Lua Implementations
+env:
+  - LUA=""             # Use automatic dependencies
+  - LUA="luajit"       # Try with LuaJIT
+# - CMAKE="-DCMAKE_VARIABLE=value"
+# - LUA="lua-5.1.5"
+
+# Allow luajit to fail
+matrix:
+  allow_failures:
+    - env: LUA="luajit"
+
+# We need CMake and LuaDist
 install:
- - sudo apt-get install cmake
+  - export MODULE='basename $PWD'
+  - sudo apt-get install cmake
+  - git clone git://github.com/LuaDist/bootstrap.git _luadist
+  - cd _luadist
+  - git submodule update --init
+  - ./bootstrap
+  - export LUADIST=$PWD/_install/bin/luadist
+  - cd $HOME
 
+# Use LuaDist to deploy the module
 script:
- - mkdir _build && cd _build
- - cmake .. -DCMAKE_INSTALL_PREFIX=../_install
- - cmake --build . --target install
- - ctest .
+  - $LUADIST _test install $LUA $MODULE-scm $CMAKE -verbose=true -debug=true -test=true
+
+# Execute additional tests or commands
+#after_script:
+#  - [run additional test commans]
+
+# Only watch the master branch
+branches:
+  only:
+    - master
+
+# Notify the LuaDist Dev group if needed
+notifications:
+  recipients:
+    - luadist-dev@googlegroups.com
+  email:
+    on_success: change
+    on_failure: always
