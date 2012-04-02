@@ -22,7 +22,7 @@ script:
 
 # Execute additional tests or commands
 after_script:
-  - ./_test/bin/lua -e "print ('_VERSION')"
+  - ./_test/bin/lua -e "print (_VERSION)"
 
 # Only watch the master branch
 branches:
