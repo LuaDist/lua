@@ -1,4 +1,4 @@
-# Copyright (C) 2007-2011 LuaDist.
+# Copyright (C) 2007-2012 LuaDist.
 # Created by Peter Drahoš, Peter Kapec
 # Redistribution and use of this file is allowed according to the terms of the MIT license.
 # For details see the COPYRIGHT file distributed with LuaDist.
@@ -6,7 +6,8 @@
 
 project ( lua C )
 cmake_minimum_required ( VERSION 2.6 )
-include ( dist.cmake )
+include ( cmake/dist.cmake )
+include ( lua )
 
 ## CONFIGURATION
 # Default configuration (we assume POSIX by default)
