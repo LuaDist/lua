@@ -166,40 +166,68 @@ return status\;
             RENAME ${_source_name}.lua )
 endmacro ()
 
-macro ( _lua_module_helper is_install _name )
-  string ( REPLACE "." "/" _module "${_name}" )
-  string ( REPLACE "." "_" _target "${_name}" )
-  
-  set ( _lua_module "${_module}.lua" )
-  set ( _bin_module "${_module}${CMAKE_SHARED_MODULE_SUFFIX}" )
-  
-  parse_arguments ( _MODULE "LINK" "" ${ARGN} )
-  get_filename_component ( _ext ${ARGV2} EXT )
-  if ( _ext STREQUAL ".lua" )
-    get_filename_component ( _path ${_lua_module} PATH )
-    get_filename_component ( _filename ${_lua_module} NAME )
-    _append_path ( "${CMAKE_CURRENT_SOURCE_DIR}" "${ARGV2}" _module_path )
-    list ( APPEND _lua_modules "${_name}" "${_module_path}" )
-    if ( is_install )
-      install ( FILES ${ARGV2} DESTINATION ${INSTALL_LMOD}/${_module_path}
-                RENAME ${_filename} )
-    endif ()
+macro ( _lua_module_helper is_install _name ) 
+  parse_arguments ( _MODULE "LINK;ALL_IN_ONE" "" ${ARGN} )
+  # _target is CMake-compatible target name for module (e.g. socket_core).
+  # _module is relative path of target (e.g. socket/core),
+  #   without extension (e.g. .lua/.so/.dll).
+  # _MODULE_SRC is list of module source files (e.g. .lua and .c files).
+  # _MODULE_NAMES is list of module names (e.g. socket.core).
+  if ( _MODULE_ALL_IN_ONE )
+    string ( REGEX REPLACE "\\..*" "" _target "${_name}" )
+    string ( REGEX REPLACE "\\..*" "" _module "${_name}" )
+    set ( _target "${_target}_all_in_one")
+    set ( _MODULE_SRC ${_MODULE_ALL_IN_ONE} )
+    set ( _MODULE_NAMES ${_name} ${_MODULE_DEFAULT_ARGS} )
   else ()
+    string ( REPLACE "." "_" _target "${_name}" )
+    string ( REPLACE "." "/" _module "${_name}" )
+    set ( _MODULE_SRC ${_MODULE_DEFAULT_ARGS} )
+    set ( _MODULE_NAMES ${_name} )
+  endif ()
+  if ( NOT _MODULE_SRC )
+    message ( FATAL_ERROR "no module sources specified" )
+  endif ()
+  list ( GET _MODULE_SRC 0 _first_source )
+  
+  get_filename_component ( _ext ${_first_source} EXT )
+  if ( _ext STREQUAL ".lua" )  # Lua source module
+    list ( LENGTH _MODULE_SRC _len )
+    if ( _len GREATER 1 )
+      message ( FATAL_ERROR "more than one source file specified" )
+    endif ()
+  
+    set ( _module "${_module}.lua" )
+
+    get_filename_component ( _module_dir ${_module} PATH )
+    get_filename_component ( _module_filename ${_module} NAME )
+    _append_path ( "${CMAKE_CURRENT_SOURCE_DIR}" "${_first_source}" _module_path )
+    list ( APPEND _lua_modules "${_name}" "${_module_path}" )
+
+    if ( ${is_install} )
+      install ( FILES ${_first_source} DESTINATION ${INSTALL_LMOD}/${_module_dir}
+                RENAME ${_module_filename} )
+    endif ()
+  else ()  # Lua C binary module
     enable_language ( C )
-    get_filename_component ( _module_name ${_bin_module} NAME_WE )
-    get_filename_component ( _module_path ${_bin_module} PATH )
-     
     find_package ( Lua51 REQUIRED )
     include_directories ( ${LUA_INCLUDE_DIR} )
+
+    set ( _module "${_module}${CMAKE_SHARED_MODULE_SUFFIX}" )
+
+    get_filename_component ( _module_dir ${_module} PATH )
+    get_filename_component ( _module_filenamebase ${_module} NAME_WE )
+    foreach ( _thisname ${_MODULE_NAMES} )
+      list ( APPEND _lua_modules "${_thisname}"
+             "${CMAKE_CURRENT_BINARY_DIR}/\${CMAKE_CFG_INTDIR}/${_module}" )
+    endforeach ()
    
-    add_library( ${_target} MODULE ${_MODULE_DEFAULT_ARGS})
+    add_library( ${_target} MODULE ${_MODULE_SRC})
     target_link_libraries ( ${_target} ${LUA_LIBRARY} ${_MODULE_LINK} )
     set_target_properties ( ${_target} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
-                "${_module_path}" PREFIX "" OUTPUT_NAME "${_module_name}" )
-    list ( APPEND _lua_modules "${_name}"
-           "${CMAKE_CURRENT_BINARY_DIR}/\${CMAKE_CFG_INTDIR}/${_bin_module}" )
-    if ( is_install )
-      install ( TARGETS ${_target} DESTINATION ${INSTALL_CMOD}/${_module_path})
+                "${_module_dir}" PREFIX "" OUTPUT_NAME "${_module_filenamebase}" )
+    if ( ${is_install} )
+      install ( TARGETS ${_target} DESTINATION ${INSTALL_CMOD}/${_module_dir})
     endif ()
   endif ()
 endmacro ()
@@ -212,10 +240,14 @@ endmacro ()
 # USE: add_lua_module ( socket.http src/http.lua )
 # USE2: add_lua_module ( mime.core src/mime.c )
 # USE3: add_lua_module ( socket.core ${SRC_SOCKET} LINK ${LIB_SOCKET} )
+# USE4: add_lua_module ( ssl.context ssl.core ALL_IN_ONE src/context.c src/ssl.c )
+#   This form builds an "all-in-one" module (e.g. ssl.so or ssl.dll containing
+#   both modules ssl.context and ssl.core).  The CMake target name will be
+#   ssl_all_in_one.
 # Also sets variable _module_path (relative path where module typically
 # would be installed).
-macro ( add_lua_module _name)
-  _lua_module_helper ( FALSE ${_name} ${ARGN} )
+macro ( add_lua_module )
+  _lua_module_helper ( 0 ${ARGN} )
 endmacro ()
 
 
@@ -224,8 +256,8 @@ endmacro ()
 # USE: install_lua_module ( socket.http src/http.lua )
 # USE2: install_lua_module ( mime.core src/mime.c )
 # USE3: install_lua_module ( socket.core ${SRC_SOCKET} LINK ${LIB_SOCKET} )
-macro ( install_lua_module _name )
-  _lua_module_helper ( TRUE ${_name} ${ARGN} )
+macro ( install_lua_module )
+  _lua_module_helper ( 1 ${ARGN} )
 endmacro ()
 
 # Builds string representing Lua table mapping Lua modules names to file
