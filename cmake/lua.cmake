@@ -38,7 +38,7 @@ macro ( install_lua_executable _name _source )
   if ( NOT SKIP_LUA_WRAPPER )
     enable_language ( C )
   
-    find_package ( Lua51 REQUIRED )
+    find_package ( Lua REQUIRED )
     include_directories ( ${LUA_INCLUDE_DIR} )
 
     set ( _wrapper ${CMAKE_CURRENT_BINARY_DIR}/${_name}.c )
@@ -210,7 +210,7 @@ macro ( _lua_module_helper is_install _name )
     endif ()
   else ()  # Lua C binary module
     enable_language ( C )
-    find_package ( Lua51 REQUIRED )
+    find_package ( Lua REQUIRED )
     include_directories ( ${LUA_INCLUDE_DIR} )
 
     set ( _module "${_module}${CMAKE_SHARED_MODULE_SUFFIX}" )
