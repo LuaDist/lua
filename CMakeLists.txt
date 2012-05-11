@@ -6,7 +6,7 @@
 
 project ( lua C )
 cmake_minimum_required ( VERSION 2.6 )
-include ( dist.cmake )
+include ( cmake/dist.cmake )
 
 ## CONFIGURATION
 # Default configuration (we assume POSIX by default)
@@ -18,9 +18,6 @@ option ( LUA_ANSI "Use only ansi features." OFF )
 option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relative paths on posix systems." ON )
 option ( LUA_COMPAT_ALL "Enable backwards compatibility options." ON )
 set ( LUA_IDSIZE 60 CACHE NUMBER "gives the maximum size for the description of the source." )
-#set ( LUA_PROMPT "> " CACHE STRING "Is the default prompt used by stand-alone Lua." )
-#set ( LUA_PROMPT2 ">> " CACHE STRING "Is the default continuation prompt used by stand-alone Lua." )
-#set ( LUA_MAXINPUT 512 CACHE NUMBER "Is the maximum length for an input line in the stand-alone interpreter.")
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
   
