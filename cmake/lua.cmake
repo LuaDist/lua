@@ -29,141 +29,39 @@ macro ( _append_path basepath path result )
 endmacro ()
 
 # install_lua_executable ( target source )
-# Automatically generate a binary wrapper for lua application and install it
-# The wrapper and the source of the application will be placed into /bin
+# Automatically generate a binary if srlua package is available
+# The application or its source will be placed into /bin 
 # If the application source did not have .lua suffix then it will be added
 # USE: lua_executable ( sputnik src/sputnik.lua )
 macro ( install_lua_executable _name _source )
   get_filename_component ( _source_name ${_source} NAME_WE )
-  if ( NOT SKIP_LUA_WRAPPER )
-    enable_language ( C )
+  # Find srlua and glue
+  find_program( SRLUA_EXECUTABLE NAMES srlua )
+  find_program( GLUE_EXECUTABLE NAMES glue )
   
-    find_package ( Lua REQUIRED )
-    include_directories ( ${LUA_INCLUDE_DIR} )
-
-    set ( _wrapper ${CMAKE_CURRENT_BINARY_DIR}/${_name}.c )
-    set ( _code 
-"// Not so simple executable wrapper for Lua apps
-#include <stdio.h>
-#include <signal.h>
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
-lua_State *L\;
-
-static int getargs (lua_State *L, char **argv, int n) {
-int narg\;
-int i\;
-int argc = 0\;
-while (argv[argc]) argc++\;
-narg = argc - (n + 1)\;
-luaL_checkstack(L, narg + 3, \"too many arguments to script\")\;
-for (i=n+1\; i < argc\; i++)
-  lua_pushstring(L, argv[i])\;
-lua_createtable(L, narg, n + 1)\;
-for (i=0\; i < argc\; i++) {
-  lua_pushstring(L, argv[i])\;
-  lua_rawseti(L, -2, i - n)\;
-}
-return narg\;
-}
-
-static void lstop (lua_State *L, lua_Debug *ar) {
-(void)ar\;
-lua_sethook(L, NULL, 0, 0)\;
-luaL_error(L, \"interrupted!\")\;
-}
-
-static void laction (int i) {
-signal(i, SIG_DFL)\;
-lua_sethook(L, lstop, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1)\;
-}
-
-static void l_message (const char *pname, const char *msg) {
-if (pname) fprintf(stderr, \"%s: \", pname)\;
-fprintf(stderr, \"%s\\n\", msg)\;
-fflush(stderr)\;
-}
-
-static int report (lua_State *L, int status) {
-if (status && !lua_isnil(L, -1)) {
-  const char *msg = lua_tostring(L, -1)\;
-  if (msg == NULL) msg = \"(error object is not a string)\"\;
-  l_message(\"${_source_name}\", msg)\;
-  lua_pop(L, 1)\;
-}
-return status\;
-}
-
-static int traceback (lua_State *L) {
-if (!lua_isstring(L, 1))
-  return 1\;
-lua_getfield(L, LUA_GLOBALSINDEX, \"debug\")\;
-if (!lua_istable(L, -1)) {
-  lua_pop(L, 1)\;
-  return 1\;
-}
-lua_getfield(L, -1, \"traceback\")\;
-if (!lua_isfunction(L, -1)) {
-  lua_pop(L, 2)\;
-  return 1\;
-}
-lua_pushvalue(L, 1)\; 
-lua_pushinteger(L, 2)\;
-lua_call(L, 2, 1)\;
-return 1\;
-}
-
-static int docall (lua_State *L, int narg, int clear) {
-int status\;
-int base = lua_gettop(L) - narg\;
-lua_pushcfunction(L, traceback)\;
-lua_insert(L, base)\;
-signal(SIGINT, laction)\;
-status = lua_pcall(L, narg, (clear ? 0 : LUA_MULTRET), base)\;
-signal(SIGINT, SIG_DFL)\;
-lua_remove(L, base)\;
-if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0)\;
-return status\;
-}
-
-int main (int argc, char **argv) {
-L=lua_open()\;
-lua_gc(L, LUA_GCSTOP, 0)\;
-luaL_openlibs(L)\;
-lua_gc(L, LUA_GCRESTART, 0)\;
-int narg = getargs(L, argv, 0)\;
-lua_setglobal(L, \"arg\")\;
-
-// Script
-char script[500] = \"./${_source_name}.lua\"\;
-lua_getglobal(L, \"_PROGDIR\")\;
-if (lua_isstring(L, -1)) {
-  sprintf( script, \"%s/${_source_name}.lua\", lua_tostring(L, -1))\;
-} 
-lua_pop(L, 1)\;
-
-// Run
-int status = luaL_loadfile(L, script)\;
-lua_insert(L, -(narg+1))\;
-if (status == 0)
-  status = docall(L, narg, 0)\;
-else
-  lua_pop(L, narg)\;
-
-report(L, status)\;
-lua_close(L)\;
-return status\;
-};
-")
-    file ( WRITE ${_wrapper} ${_code} )
-    add_executable ( ${_name} ${_wrapper} )
-    target_link_libraries ( ${_name} ${LUA_LIBRARY} )
-    install ( TARGETS ${_name} DESTINATION ${INSTALL_BIN} )
+  if ( NOT SKIP_LUA_WRAPPER AND SRLUA_EXECUTABLE AND GLUE_EXECUTABLE )
+    # Generate binary gluing the lua code to srlua
+    add_custom_command(
+      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${_name}
+      COMMAND ${GLUE_EXECUTABLE} 
+      ARGS ${SRLUA_EXECUTABLE} ${_source} ${CMAKE_CURRENT_BINARY_DIR}/${_name}
+      DEPENDS ${_source}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      VERBATIM
+    )
+    # Make sure we have a target associated with the binary
+    add_custom_target(${_name} ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${_name}
+    )
+    # Install with run permissions
+    install ( PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${_name} DESTINATION ${INSTALL_BIN} COMPONENT Runtime)
+  else()
+    # Add .lua suffix and install as is
+    install ( PROGRAMS ${_source} DESTINATION ${INSTALL_BIN}
+            RENAME ${_source_name}.lua 
+            COMPONENT Runtime
+    )
   endif()
-  install ( PROGRAMS ${_source} DESTINATION ${INSTALL_BIN}
-            RENAME ${_source_name}.lua )
 endmacro ()
 
 macro ( _lua_module_helper is_install _name ) 
@@ -206,7 +104,9 @@ macro ( _lua_module_helper is_install _name )
 
     if ( ${is_install} )
       install ( FILES ${_first_source} DESTINATION ${INSTALL_LMOD}/${_module_dir}
-                RENAME ${_module_filename} )
+                RENAME ${_module_filename} 
+                COMPONENT Runtime
+      )
     endif ()
   else ()  # Lua C binary module
     enable_language ( C )
@@ -227,7 +127,7 @@ macro ( _lua_module_helper is_install _name )
     set_target_properties ( ${_target} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                 "${_module_dir}" PREFIX "" OUTPUT_NAME "${_module_filenamebase}" )
     if ( ${is_install} )
-      install ( TARGETS ${_target} DESTINATION ${INSTALL_CMOD}/${_module_dir})
+      install ( TARGETS ${_target} DESTINATION ${INSTALL_CMOD}/${_module_dir} COMPONENT Runtime)
     endif ()
   endif ()
 endmacro ()
