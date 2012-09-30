@@ -45,7 +45,7 @@ if ( WIN32 AND NOT CYGWIN )
   option ( LUA_WIN "Windows specific build." ON )
   option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
-	if ( LUA_BUILD_AS_DLL )
+  if ( LUA_BUILD_AS_DLL )
     add_definitions ( -DLUA_BUILD_AS_DLL )
   endif ()
   
