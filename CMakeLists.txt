@@ -44,7 +44,11 @@ if ( WIN32 AND NOT CYGWIN )
   # Windows systems
   option ( LUA_WIN "Windows specific build." ON )
   option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON )
-  option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ON )
+  option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
+	if ( LUA_BUILD_AS_DLL )
+    add_definitions ( -DLUA_BUILD_AS_DLL )
+  endif ()
+  
   # Paths (Double escapes needed)
   set ( LUA_DIRSEP "\\\\" ) 
   string ( REPLACE " /" ${LUA_DIRSEP} LUA_DIR "${LUA_DIR}" )
