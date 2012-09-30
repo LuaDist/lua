@@ -4,7 +4,7 @@
 
 # We assume C build environments
 language: C
-	
+
 # Try using multiple Lua Implementations
 env:
   - TOOL=""                     # Use native compiler (GCC usually)
