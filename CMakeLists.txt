@@ -45,10 +45,7 @@ if ( WIN32 AND NOT CYGWIN )
   option ( LUA_WIN "Windows specific build." ON )
   option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
-  if ( LUA_BUILD_AS_DLL )
-    add_definitions ( -DLUA_BUILD_AS_DLL )
-  endif ()
-  
+
   # Paths (Double escapes needed)
   set ( LUA_DIRSEP "\\\\" ) 
   string ( REPLACE " /" ${LUA_DIRSEP} LUA_DIR "${LUA_DIR}" )
@@ -137,6 +134,9 @@ endif ( )
 add_library ( liblua SHARED ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
 target_link_libraries ( liblua ${LIBS} )
 set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 )
+if ( LUA_BUILD_AS_DLL )
+  set_target_properties ( liblua PROPERTIES COMPILE_DEFINITIONS LUA_BUILD_AS_DLL )
+endif ( )
 
 # Create static library, this is needed to compile luac in the 5.1.x Lua series
 add_library ( liblua_static STATIC ${SRC_LIB} )
