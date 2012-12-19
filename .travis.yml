@@ -9,6 +9,7 @@ language: C
 env:
   - TOOL=""                     # Use native compiler (GCC usually)
   - COMPILER="clang"            # Use clang
+# - COMPILER="fortran"          # Use fortran, make sure to modify the matrix section
   - TOOL="i686-w64-mingw32"     # 32bit MinGW
   - TOOL="x86_64-w64-mingw32"   # 64bit MinGW
   - TOOL="arm-linux-gnueabihf"  # ARM hard-float (hf), linux
