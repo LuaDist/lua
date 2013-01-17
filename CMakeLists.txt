@@ -41,7 +41,7 @@ if ( WIN32 AND NOT CYGWIN )
   option ( LUA_WIN "Windows specific build." ON )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
   
-  # Paths (Double escapes ne  option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ON )eded)
+  # Paths (Double escapes ne  option needed)
   set ( LUA_DIRSEP "\\\\" )
   string ( REPLACE " /" ${LUA_DIRSEP} LUA_DIR "${LUA_DIR}" )
   string ( REPLACE "/" ${LUA_DIRSEP} LUA_LDIR "${LUA_LDIR}" )
