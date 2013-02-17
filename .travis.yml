@@ -3,7 +3,7 @@
 #
 
 # We assume C build environments
-language: c
+language: C
 
 # Try using multiple Lua Implementations
 env:
