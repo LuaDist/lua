@@ -7,8 +7,8 @@ language: C
 
 # Try using multiple Lua Implementations
 env:
-  - TOOL=""                     # Use native compiler (GCC usually)
-  - COMPILER="clang"            # Use clang
+  - TOOL="gcc"                  # Use native compiler (GCC usually)
+  - TOOL="clang"                # Use clang
   - TOOL="i686-w64-mingw32"     # 32bit MinGW
   - TOOL="x86_64-w64-mingw32"   # 64bit MinGW
   - TOOL="arm-linux-gnueabihf"  # ARM hard-float (hf), linux
