@@ -39,6 +39,7 @@ set ( LUA_CPATH_DEFAULT "./?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/?${LUA_MO
 if ( WIN32 AND NOT CYGWIN )
   # Windows systems
   option ( LUA_WIN "Windows specific build." ON )
+  option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
   
   # Paths (Double escapes ne  option needed)
@@ -131,6 +132,13 @@ target_link_libraries ( lua liblua )
 
 add_executable ( luac ${SRC_CORE} ${SRC_LIB} ${SRC_LUAC} src/luac.rc )
 target_link_libraries ( luac ${LIBS} )
+
+# On windows a variant of the lua interpreter without console output needs to be built
+if ( LUA_BUILD_WLUA )
+  add_executable ( wlua WIN32 src/wmain.c ${SRC_LUA} ${LUA_RC} )
+  target_link_libraries ( wlua liblua )
+  install_executable ( wlua )
+endif ( )
 
 install_executable ( lua luac )
 install_library ( liblua )
