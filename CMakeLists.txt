@@ -135,7 +135,7 @@ target_link_libraries ( luac ${LIBS} )
 
 # On windows a variant of the lua interpreter without console output needs to be built
 if ( LUA_BUILD_WLUA )
-  add_executable ( wlua WIN32 src/wmain.c ${SRC_LUA} ${LUA_RC} )
+  add_executable ( wlua WIN32 src/wmain.c ${SRC_LUA} src/lua.rc )
   target_link_libraries ( wlua liblua )
   install_executable ( wlua )
 endif ( )
