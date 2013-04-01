@@ -123,7 +123,7 @@ static void setprogdir (lua_State *L);
   #define _PATH_MAX PATH_MAX
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__sun)
   #include <unistd.h> /* readlink */
 #endif
 
@@ -154,7 +154,7 @@ static void setprogdir(lua_State *L) {
   if (n > 0) progdir[n] = 0;
 #elif defined(__sun)
   pid_t pid = getpid();
-  char linkname[256]
+  char linkname[256];
   sprintf(linkname, "/proc/%d/path/a.out", pid);
   n = readlink(linkname, progdir, nsize);
   if (n > 0) progdir[n] = 0;  
