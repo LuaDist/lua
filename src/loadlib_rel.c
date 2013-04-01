@@ -137,7 +137,7 @@ static void setprogdir (lua_State *L);
   #include <sys/sysctl.h>
 #endif
 
-static void setprogdir() {
+static void setprogdir(lua_State *L) {
   char progdir[_PATH_MAX + 1];
   char *lb;
   int nsize = sizeof(progdir)/sizeof(char);
