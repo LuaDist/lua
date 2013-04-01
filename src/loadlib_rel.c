@@ -132,7 +132,12 @@ static void setprogdir (lua_State *L);
   #include <mach-o/dyld.h>
 #endif
 
-static void setprogdir (lua_State *L) {
+#if defined(__FreeBSD__)
+  #include <sys/types.h>
+  #include <sys/sysctl.h>
+#endif
+
+static char* setprogdir () {
   char progdir[_PATH_MAX + 1];
   char *lb;
   int nsize = sizeof(progdir)/sizeof(char);
@@ -147,7 +152,22 @@ static void setprogdir (lua_State *L) {
 #elif defined(__linux__)
   n = readlink("/proc/self/exe", progdir, nsize);
   if (n > 0) progdir[n] = 0;
+#elif defined(__sun)
+  pid_t pid = getpid();
+  char linkname[256]
+  sprintf(linkname, "/proc/%d/path/a.out", pid);
+  n = readlink(linkname, progdir, nsize);
+  if (n > 0) progdir[n] = 0;  
 #elif defined(__FreeBSD__)
+  int mib[4];
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PATHNAME;
+  mib[3] = -1;
+  size_t cb = sizeof(progdir);
+  sysctl(mib, 4, progdir, &cb, NULL, 0);
+  n = cb;
+#elif defined(__BSD__)
   n = readlink("/proc/curproc/file", progdir, nsize);
   if (n > 0) progdir[n] = 0;
 #elif defined(__APPLE__)
@@ -174,9 +194,6 @@ static void setprogdir (lua_State *L) {
     luaL_error(L, "unable to get process executable path");
   else {
     *lb = '\0';
-    // Set progdir global
-    lua_pushstring(L, progdir);
-    lua_setglobal(L, "_PROGDIR");
     
     // Replace the relative path placeholder
     luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, progdir);

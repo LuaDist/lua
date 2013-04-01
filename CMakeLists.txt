@@ -1,4 +1,4 @@
-# Copyright (C) 2007-2012 LuaDist.
+# Copyright (C) 2007-2013 LuaDist.
 # Created by Peter Drahoš, Peter Kapec
 # Redistribution and use of this file is allowed according to the terms of the MIT license.
 # For details see the COPYRIGHT file distributed with LuaDist.
@@ -82,7 +82,10 @@ endif ( )
 
 if ( LUA_USE_DLOPEN )
   # Link to dynamic linker library "dl"
-  list ( APPEND LIBS dl )
+	find_library ( DL_LIBRARY NAMES dl )
+	if ( DL_LIBRARY )
+  	list ( APPEND LIBS ${DL_LIBRARY} )
+	endif ( )
 endif ( )
 
 if ( LUA_USE_READLINE )
