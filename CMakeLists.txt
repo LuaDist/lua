@@ -78,12 +78,18 @@ endif ( )
 # Setup needed variables and libraries
 if ( LUA_USE_POSIX )
   # On POSIX Lua links to standard math library "m"
-  list ( APPEND LIBS m )
+	find_library ( MATH_LIBRARY NAMES m )
+	if ( MATH_LIBRARY )
+		list ( APPEND LIBS ${MATH_LIBRARY} )
+	endif ( )
 endif ( )
 
 if ( LUA_USE_DLOPEN )
   # Link to dynamic linker library "dl"
-  list ( APPEND LIBS dl )
+	find_library ( DL_LIBRARY NAMES dl )
+	if ( DL_LIBRARY )
+		list ( APPEND LIBS ${DL_LIBRARY} )
+	endif ( )
 endif ( )
 
 if ( LUA_WIN )
