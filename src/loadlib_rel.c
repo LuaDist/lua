@@ -130,7 +130,7 @@ static void setprogdir(lua_State *L) {
     *lb = '\0';
     
     // Replace the relative path placeholder
-    luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, progdir);
+    luaL_gsub(L, lua_tostring(L, -1), LUA_EXECDIR, progdir);
     lua_remove(L, -2);
   }
 }
