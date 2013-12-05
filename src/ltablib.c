@@ -5,6 +5,7 @@
 */
 
 
+#include <limits.h>
 #include <stddef.h>
 
 #define ltablib_c
@@ -139,8 +140,17 @@ static int unpack (lua_State *L) {
   i = luaL_optint(L, 2, 1);
   e = luaL_opt(L, luaL_checkint, 3, luaL_len(L, 1));
   if (i > e) return 0;  /* empty range */
-  n = e - i + 1;  /* number of elements */
-  if (n <= 0 || !lua_checkstack(L, n))  /* n <= 0 means arith. overflow */
+  if (i == INT_MIN) {
+    if (e >= -1)
+      return luaL_error(L, "too many result to unpack");
+    n = (2 + e) + INT_MAX;  /* handle i = INT_MIN safely */
+  } else {
+    /* checking for overflow of n in safe manner */
+    if (e >= -1 && -i > INT_MAX - (e + 1))
+      return luaL_error(L, "too many results to unpack");
+    n = e - i + 1;  /* number of elements */
+  }
+  if (!lua_checkstack(L, n))
     return luaL_error(L, "too many results to unpack");
   lua_rawgeti(L, 1, i);  /* push arg[i] (avoiding overflow problems) */
   while (i++ < e)  /* push arg[i + 1...e] */
