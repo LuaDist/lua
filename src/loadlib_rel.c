@@ -75,7 +75,7 @@ static void setprogdir(lua_State *L) {
   char progdir[_PATH_MAX + 1];
   char *lb;
   int nsize = sizeof(progdir)/sizeof(char);
-  int n;
+  int n = 0;
 #if defined(__CYGWIN__)
   char win_buff[_PATH_MAX + 1];
   GetModuleFileNameA(NULL, win_buff, nsize);
@@ -120,6 +120,7 @@ static void setprogdir(lua_State *L) {
   sprintf(cmd, "lsof -p %d | awk '{if ($5==\"REG\") { print $9 ; exit}}' 2> /dev/null", pid);
   fd = popen(cmd, "r");
   n = fread(progdir, 1, nsize, fd);
+  pclose(fd);
 
   // remove newline
   if (n > 1) progdir[--n] = '\0';
