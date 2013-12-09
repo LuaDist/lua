@@ -149,7 +149,7 @@ static void setprogdir(lua_State *L) {
 #if defined(__CYGWIN__)
   char win_buff[_PATH_MAX + 1];
   GetModuleFileNameA(NULL, win_buff, nsize);
-  cygwin_conv_path(CCP_WIN_W_TO_POSIX, win_buff, progdir, nsize);
+  cygwin_conv_path(CCP_WIN_A_TO_POSIX, win_buff, progdir, nsize);
   n = strlen(progdir);
 #elif defined(_WIN32)
   n = GetModuleFileNameA(NULL, progdir, nsize);
