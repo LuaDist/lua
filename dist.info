@@ -8,3 +8,8 @@ author = "Roberto Ierusalimschy, Waldemar Celes, Luiz Henrique de Figueiredo"
 license = "MIT/X11"
 url = "http://www.lua.org"
 maintainer = "Peter Drahoš"
+
+-- Offers functionality of the following packages
+provides = {
+    "bit32-5.2.0"
+}
