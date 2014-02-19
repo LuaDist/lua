@@ -116,11 +116,15 @@ static void setprogdir (lua_State *L);
 ** Modified by the LuaDist project for UNIX platforms
 ** ==========================================================================
 */
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_WIN32)
   #include <windows.h>
   #define _PATH_MAX MAX_PATH
 #else
   #define _PATH_MAX PATH_MAX
+#endif
+
+#if defined (__CYGWIN__)
+  #include <sys/cygwin.h>
 #endif
 
 #if defined(__linux__) || defined(__sun)
@@ -145,7 +149,7 @@ static void setprogdir(lua_State *L) {
 #if defined(__CYGWIN__)
   char win_buff[_PATH_MAX + 1];
   GetModuleFileNameA(NULL, win_buff, nsize);
-  cygwin_conv_to_posix_path(win_buff, progdir);
+  cygwin_conv_path(CCP_WIN_A_TO_POSIX, win_buff, progdir, nsize);
   n = strlen(progdir);
 #elif defined(_WIN32)
   n = GetModuleFileNameA(NULL, progdir, nsize);
