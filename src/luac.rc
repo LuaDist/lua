@@ -1,8 +1,8 @@
 0  ICON  "../etc/lua.ico"
 
 1 VERSIONINFO
- FILEVERSION 5,2,3,0
- PRODUCTVERSION 5,2,3,0
+ FILEVERSION 5,2,4,0
+ PRODUCTVERSION 5,2,4,0
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
@@ -11,11 +11,11 @@ BEGIN
             VALUE "Comments", "www.lua.org\0"
             VALUE "CompanyName", "Lua.org\0"
             VALUE "FileDescription", "Lua Compiler\0"
-            VALUE "FileVersion", "5.2.3\0"
-            VALUE "LegalCopyright", "Copyright © 1994-2013 Lua.org, PUC-Rio.\0"
+            VALUE "FileVersion", "5.2.4\0"
+            VALUE "LegalCopyright", "Copyright © 1994-2015 Lua.org, PUC-Rio.\0"
             VALUE "OriginalFilename", "luac.exe\0"
             VALUE "ProductName", "Lua - The Programming Language\0"
-            VALUE "ProductVersion", "5.2.3\0"
+            VALUE "ProductVersion", "5.2.4\0"
             VALUE "PrivateBuild", "Built using LuaDist\0"
         END
     END
