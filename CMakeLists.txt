@@ -1,4 +1,4 @@
-# Copyright (C) 2007-2013 LuaDist.
+# Copyright (C) 2007-2015 LuaDist.
 # Created by Peter Drahoš, Peter Kapec
 # Redistribution and use of this file is allowed according to the terms of the MIT license.
 # For details see the COPYRIGHT file distributed with LuaDist.
@@ -14,10 +14,11 @@ set ( LUA_PATH "LUA_PATH" CACHE STRING "Environment variable to use as package.p
 set ( LUA_CPATH "LUA_CPATH" CACHE STRING "Environment variable to use as package.cpath." )
 set ( LUA_INIT "LUA_INIT" CACHE STRING "Environment variable for initial script." )
 
-option ( LUA_ANSI "Use only ansi features." OFF )
+option ( LUA_USE_C89 "Use only C89 features." OFF )
 option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relative paths on posix systems." ON )
-option ( LUA_COMPAT_ALL "Enable backwards compatibility options." ON )
-set ( LUA_IDSIZE 60 CACHE NUMBER "gives the maximum size for the description of the source." )
+
+option ( LUA_COMPAT_5_1 "Enable backwards compatibility options with lua-5.1." ON )
+option ( LUA_COMPAT_5_2 "Enable backwards compatibility options with lua-5.2." ON )
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
 set ( LUA_DIRSEP "/" )
@@ -38,11 +39,11 @@ set ( LUA_CPATH_DEFAULT "./?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/?${LUA_MO
 
 if ( WIN32 AND NOT CYGWIN )
   # Windows systems
-  option ( LUA_WIN "Windows specific build." ON )
+  option ( LUA_USE_WINDOWS "Windows specific build." ON )
   option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON )
-  option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
+  option ( LUA_DL_DLL "Build with Dll support" ON )
   
-  # Paths (Double escapes ne  option needed)
+  # Paths (Double escapes needed)
   set ( LUA_DIRSEP "\\\\" )
   string ( REPLACE " /" ${LUA_DIRSEP} LUA_DIR "${LUA_DIR}" )
   string ( REPLACE "/" ${LUA_DIRSEP} LUA_LDIR "${LUA_LDIR}" )
@@ -53,16 +54,9 @@ else ( )
   # Posix systems (incl. Cygwin)
   option ( LUA_USE_POSIX "Use POSIX features." ON )
   option ( LUA_USE_DLOPEN "Use dynamic linker to load modules." ON )
-  option ( LUA_USE_MKSTEMP "Use mkstep." ON )
-  option ( LUA_USE_ISATTY "Use tty." ON )
-  option ( LUA_USE_POPEN "Use popen." ON )
-  option ( LUA_USE_ULONGJMP "Use ulongjmp" ON )
-  option ( LUA_USE_GMTIME_R "Use GTIME_R" ON )
   # Apple and Linux specific
   if ( LINUX OR APPLE )
-    option ( LUA_USE_STRTODHEX "Assume 'strtod' handles hexa formats" ON )
     option ( LUA_USE_AFORMAT "Assume 'printf' handles 'aA' specifiers" ON )
-    option ( LUA_USE_LONGLONG "Assume support for long long" ON )
   endif ( )
 endif ( )
 
@@ -71,11 +65,6 @@ endif ( )
 find_package ( Readline )
 if ( READLINE_FOUND )
   option ( LUA_USE_READLINE "Use readline in the Lua CLI." ON )
-endif ( )
-
-find_package ( Curses )
-if ( CURSES_FOUND )
-  option ( LUA_USE_CURSES "Use curses in the Lua CLI." ON )
 endif ( )
 
 # Setup needed variables and libraries
@@ -98,12 +87,6 @@ if ( LUA_USE_READLINE )
   list ( APPEND LIBS ${READLINE_LIBRARY} )
 endif ( )
 
-if ( LUA_USE_CURSES )
-  # Add curses
-  include_directories ( ${CURSES_INCLUDE_DIR} )
-  list ( APPEND LIBS ${CURSES_LIBRARY} )
-endif ( )
-
 ## SOURCES
 # Generate luaconf.h
 configure_file ( src/luaconf.h.in ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h )
@@ -114,7 +97,8 @@ set ( SRC_CORE src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ld
   src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c src/lparser.c 
   src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c src/lvm.c src/lzio.c )
 set ( SRC_LIB src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c 
-  src/liolib.c src/lmathlib.c src/loslib.c src/lstrlib.c src/ltablib.c src/linit.c )
+  src/liolib.c src/lmathlib.c src/loslib.c src/lstrlib.c src/ltablib.c src/linit.c 
+  src/lutf8lib.c )
 set ( SRC_LUA src/lua.c )
 set ( SRC_LUAC src/luac.c )
 
@@ -131,7 +115,7 @@ add_library ( liblua ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
 target_link_libraries ( liblua ${LIBS} )
 set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 )
 if ( LUA_BUILD_AS_DLL )
-  set_target_properties ( liblua PROPERTIES COMPILE_DEFINITIONS LUA_BUILD_AS_DLL )
+  set_target_properties ( liblua PROPERTIES COMPILE_DEFINITIONS LUA_DL_DLL )
 endif ()
 
 add_executable ( lua ${SRC_LUA} src/lua.rc )
