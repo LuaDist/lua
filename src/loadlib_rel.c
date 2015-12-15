@@ -14,6 +14,7 @@
 #include "lprefix.h"
 
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -228,8 +229,8 @@ static void setprogdir(lua_State *L) {
 #include <dlfcn.h>
 
 /*
-** Macro to covert pointer to void* to pointer to function. This cast
-** is undefined according to ISO C, but POSIX assumes that it must work.
+** Macro to convert pointer-to-void* to pointer-to-function. This cast
+** is undefined according to ISO C, but POSIX assumes that it works.
 ** (The '__extension__' in gnu compilers is only to avoid warnings.)
 */
 #if defined(__GNUC__)
