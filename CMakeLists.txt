@@ -4,7 +4,7 @@
 # For details see the COPYRIGHT file distributed with LuaDist.
 # Please note that the package source code is licensed under its own license.
 
-project ( lua C )
+project ( lua LANGUAGES C CXX )
 cmake_minimum_required ( VERSION 2.8 )
 include ( cmake/dist.cmake )
 
@@ -14,6 +14,7 @@ set ( LUA_PATH "LUA_PATH" CACHE STRING "Environment variable to use as package.p
 set ( LUA_CPATH "LUA_CPATH" CACHE STRING "Environment variable to use as package.cpath." )
 set ( LUA_INIT "LUA_INIT" CACHE STRING "Environment variable for initial script." )
 
+option ( LUA_CXX "Compile as CXX instead of C." OFF )
 option ( LUA_ANSI "Use only ansi features." OFF )
 option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relative paths on posix systems." ON )
 option ( LUA_COMPAT_ALL "Enable backwards compatibility options." ON )
@@ -125,9 +126,17 @@ else ( )
   list ( APPEND SRC_LIB src/loadlib.c )
 endif ( )
 
+if (LUA_CXX)
+  SET_SOURCE_FILES_PROPERTIES( ${SRC_CORE} ${SRC_LIB} ${SRC_LUA} ${SRC_LUAC} PROPERTIES LANGUAGE CXX )
+endif()
+
 ## BUILD
 # Create lua library
-add_library ( liblua ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
+if (LUA_BUILD_AS_DLL)
+        add_library ( liblua ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
+else()
+        add_library ( liblua STATIC ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} ${LUA_DEF} )
+endif()
 target_link_libraries ( liblua ${LIBS} )
 set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 )
 if ( LUA_BUILD_AS_DLL )
