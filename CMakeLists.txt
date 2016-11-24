@@ -41,6 +41,7 @@ if ( WIN32 AND NOT CYGWIN )
   option ( LUA_WIN "Windows specific build." ON )
   option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
+  option ( LUA_LINK_MSVCRT_STATIC "Build Lua library with static linkage to MSVCRT" )
   
   # Paths (Double escapes ne  option needed)
   set ( LUA_DIRSEP "\\\\" )

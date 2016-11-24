@@ -76,9 +76,14 @@ set ( CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true )
 set ( CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH} )
 option ( BUILD_SHARED_LIBS "Build shared libraries" ON )
 
-# In MSVC, prevent warnings that can occur when using standard libraries.
 if ( MSVC )
+  # In MSVC, prevent warnings that can occur when using standard libraries.
   add_definitions ( -D_CRT_SECURE_NO_WARNINGS )
+
+  if ( LUA_LINK_MSVCRT_STATIC )
+    set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT" )
+    set ( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd" )
+  endif ()
 endif ()
 
 # RPath and relative linking
