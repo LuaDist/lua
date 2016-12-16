@@ -4,38 +4,27 @@
 # For details see the COPYRIGHT file distributed with LuaDist.
 # Please note that the package source code is licensed under its own license.
 
+# modified by 0x600d1dea <xiaobin.huang@gmail.com>
+#    removed loadlib_rel, dont understand the propers. lua doing it quite well.
+#    removed LUA_PATH, LUA_CPATH and LUA_INIT
+#    added LUADIST_USE_SPECIFIC_LUA_PATH_AND_CPATH for configuring path and cpath
+
 project ( lua C )
 cmake_minimum_required ( VERSION 2.8 )
 include ( cmake/dist.cmake )
 
 ## CONFIGURATION
 # Default configuration (we assume POSIX by default)
-set ( LUA_PATH "LUA_PATH" CACHE STRING "Environment variable to use as package.path." )
-set ( LUA_CPATH "LUA_CPATH" CACHE STRING "Environment variable to use as package.cpath." )
-set ( LUA_INIT "LUA_INIT" CACHE STRING "Environment variable for initial script." )
+
+# 0x600d1dea, removed LUA_PATH, LUA_CPATH and LUA_INIT. 
 
 option ( LUA_USE_C89 "Use only C89 features." OFF )
-option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relative paths on posix systems." ON )
-
 option ( LUA_COMPAT_5_1 "Enable backwards compatibility options with lua-5.1." ON )
 option ( LUA_COMPAT_5_2 "Enable backwards compatibility options with lua-5.2." ON )
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
-set ( LUA_DIRSEP "/" )
+
 set ( LUA_MODULE_SUFFIX ${CMAKE_SHARED_MODULE_SUFFIX} )
-set ( LUA_LDIR ${INSTALL_LMOD} )
-set ( LUA_CDIR ${INSTALL_CMOD} )
-
-if ( LUA_USE_RELATIVE_LOADLIB )
-  # This will set up relative paths to lib
-  string ( REGEX REPLACE "[^!/]+" ".." LUA_DIR "!/${INSTALL_BIN}/" )
-else ( )
-  # Direct path to installation
-  set ( LUA_DIR ${CMAKE_INSTALL_PREFIX} CACHE STRING "Destination from which modules will be resolved. See INSTALL_LMOD and INSTALL_CMOD." )
-endif ( )
-
-set ( LUA_PATH_DEFAULT "./?.lua;${LUA_DIR}${LUA_LDIR}/?.lua;${LUA_DIR}${LUA_LDIR}/?/init.lua" )
-set ( LUA_CPATH_DEFAULT "./?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/?${LUA_MODULE_SUFFIX};${LUA_DIR}${LUA_CDIR}/loadall${LUA_MODULE_SUFFIX}" )
 
 if ( WIN32 AND NOT CYGWIN )
   # Windows systems
@@ -43,14 +32,8 @@ if ( WIN32 AND NOT CYGWIN )
   option ( LUA_BUILD_WLUA "Build wLua interpretter without console output." ON )
   option ( LUA_BUILD_AS_DLL "Build Lua library as Dll." ${BUILD_SHARED_LIBS} )
 
-  # Paths (Double escapes needed)
-  set ( LUA_DIRSEP "\\\\" )
-  string ( REPLACE " /" ${LUA_DIRSEP} LUA_DIR "${LUA_DIR}" )
-  string ( REPLACE "/" ${LUA_DIRSEP} LUA_LDIR "${LUA_LDIR}" )
-  string ( REPLACE "/" ${LUA_DIRSEP} LUA_CDIR "${LUA_CDIR}" )
-  string ( REPLACE "/" ${LUA_DIRSEP} LUA_PATH_DEFAULT "${LUA_PATH_DEFAULT}" )
-  string ( REPLACE "/" ${LUA_DIRSEP} LUA_CPATH_DEFAULT "${LUA_CPATH_DEFAULT}" )
-else ( )
+else ( POSIX )
+
   # Posix systems (incl. Cygwin)
   option ( LUA_USE_POSIX "Use POSIX features." ON )
   option ( LUA_USE_DLOPEN "Use dynamic linker to load modules." ON )
@@ -58,7 +41,38 @@ else ( )
   if ( LINUX OR APPLE )
     option ( LUA_USE_AFORMAT "Assume 'printf' handles 'aA' specifiers" ON )
   endif ( )
+
 endif ( )
+
+
+# 0x600d1dea: added LUA_PATH_DEFAULT and LUA_CPATH_DEFAULT
+option (LUADIST_USE_SPECIFIC_LUA_PATH_AND_CPATH "Use specified LUA_PATH_DEFAULT and LUA_CPATH_DEFAULT." ON)
+if ( LUADIST_USE_SPECIFIC_LUA_PATH_AND_CPATH )
+  if ( WIN32 AND NOT CYGWIN )
+    set ( LUA_LDIR "!/lua/" )
+    set ( LUA_CDIR "!/" )
+    set ( LUA_SHRDIR "${INSTALL_BIN}../share/lua/${V}" )
+
+    set ( LUA_PATH_DEFAULT "${LUA_LDIR}?.lua;${LUA_LDIR}?/init.lua;${LUA_CDIR}?.lua;${LUA_CDIR}?/init.lua;${LUA_SHRDIR}?.lua;${LUA_SHRDIR}?/init.lua;./?.lua;./?/init.lua"
+          CACHE STRING "The default path that Lua uses to look for Lua libraries." )
+    set ( LUA_CPATH_DEFAULT "${LUA_CDIR}?${LUA_MODULE_SUFFIX};${LUA_CDIR}../lib/lua/${V}/?${LUA_MODULE_SUFFIX};${LUA_CDIR}loadall${LUA_MODULE_SUFFIX};./?${LUA_MODULE_SUFFIX}"
+          CACHE STRING "The default path that Lua uses to look for C libraries." )
+
+    # Paths (Double escapes needed)
+    set ( LUA_DIRSEP "\\\\" )
+    string ( REPLACE "/" ${LUA_DIRSEP} LUA_PATH_DEFAULT "${LUA_PATH_DEFAULT}" )
+    string ( REPLACE "/" ${LUA_DIRSEP} LUA_CPATH_DEFAULT "${LUA_CPATH_DEFAULT}" )
+  else ()
+     set ( LUA_ROOT "${INSTALL_TOP}/")
+     set ( LUA_LDIR ${LUA_ROOT}"share/lua/${V}/" )
+     set ( LUA_CDIR ${LUA_ROOT}"lib/lua/${V}/" )
+     set ( LUA_PATH_DEFAULT "${LUA_LDIR}?.lua;${LUA_LDIR}?/init.lua;${LUA_CDIR}?.lua;${LUA_CDIR}?/init.lua;./?.lua;./?/init.lua"
+          CACHE STRING "The default path that Lua uses to look for Lua libraries." )
+     set ( LUA_CPATH_DEFAULT "${LUA_CDIR}?${LUA_MODULE_SUFFIX};${LUA_CDIR}loadall${LUA_MODULE_SUFFIX};./?${LUA_MODULE_SUFFIX}"
+          CACHE STRING "The default path that Lua uses to look for C libraries." )
+  endif ()
+endif ( LUADIST_USE_SPECIFIC_LUA_PATH_AND_CPATH )
+
 
 ## SETUP
 # Optional libraries
@@ -97,17 +111,11 @@ set ( SRC_CORE src/lapi.c src/lcode.c src/lctype.c src/ldebug.c src/ldo.c src/ld
   src/lfunc.c src/lgc.c src/llex.c src/lmem.c src/lobject.c src/lopcodes.c src/lparser.c
   src/lstate.c src/lstring.c src/ltable.c src/ltm.c src/lundump.c src/lvm.c src/lzio.c )
 set ( SRC_LIB src/lauxlib.c src/lbaselib.c src/lbitlib.c src/lcorolib.c src/ldblib.c
-  src/liolib.c src/lmathlib.c src/loslib.c src/lstrlib.c src/ltablib.c src/linit.c
-  src/lutf8lib.c )
+  src/liolib.c src/lmathlib.c src/loslib.c src/lstrlib.c src/ltablib.c src/lutf8lib.c 
+  src/linit.c src/loadlib.c)
 set ( SRC_LUA src/lua.c )
 set ( SRC_LUAC src/luac.c )
 
-if ( LUA_USE_RELATIVE_LOADLIB )
-  # Use modified loadlib
-  list ( APPEND SRC_LIB src/loadlib_rel.c )
-else ( )
-  list ( APPEND SRC_LIB src/loadlib.c )
-endif ( )
 
 ## BUILD
 # Create lua library
@@ -134,8 +142,7 @@ endif ( )
 install_executable ( lua luac )
 install_library ( liblua )
 install_data ( README.md )
-#install_lua_module ( strict etc/strict.lua )
 install_header ( src/lua.h src/lualib.h src/lauxlib.h src/lua.hpp ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h )
 install_doc ( doc/ )
 install_foo ( etc/ )
-#install_test ( test/ )
+

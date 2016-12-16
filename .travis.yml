@@ -40,12 +40,11 @@ after_script:
 # Only watch the master branch
 branches:
   only:
-    - master
+    - lua-5.3
 
-# Notify the LuaDist Dev group if needed
 notifications:
   recipients:
-    - luadist-dev@googlegroups.com
+    - xiaobin.huang@gmail.com
   email:
     on_success: change
     on_failure: always

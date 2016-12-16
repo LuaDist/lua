@@ -47,14 +47,31 @@ endif ()
 message ( "DIST_DEPENDS: ${DIST_DEPENDS}")
 ## 2DO: Parse DIST_DEPENDS and try to install Dependencies with automatically using externalproject_add
 
+## Setup V and R
+string ( REGEX MATCH "^([0-9]+)\\.([0-9]+)(\\.([0-9]+))?$" VERSION_MATCHED "${DIST_VERSION}" )
+if ( VERSION_MATCHED )
+  set ( V "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}" )
+  string (LENGTH "${CMAKE_MATCH_4}" LENGTH_R )
+  if ( ${LENGTH_R} GREATER 0 )
+    set ( R "${V}.${CMAKE_MATCH_4}")
+  else ()
+    set ( R "${V}")
+  endif ()
+  message ( STATUS "V = ${V}" )
+  message ( STATUS "R = ${R}" )
+else ()
+  message ( FATAL "Incorrect version = \"${DIST_VERSION}\" in dist.info ")
+endif ()
+
+
 
 ## INSTALL DEFAULTS (Relative to CMAKE_INSTALL_PREFIX)
 # Primary paths
-set ( INSTALL_BIN bin CACHE PATH "Where to install binaries to." )
-set ( INSTALL_LIB lib CACHE PATH "Where to install libraries to." )
-set ( INSTALL_INC include CACHE PATH "Where to install headers to." )
-set ( INSTALL_ETC etc CACHE PATH "Where to store configuration files" )
-set ( INSTALL_SHARE share CACHE PATH "Directory for shared data." )
+set ( INSTALL_TOP ${CMAKE_INSTALL_PREFIX} )
+set ( INSTALL_BIN ${INSTALL_TOP}/bin CACHE PATH "Where to install binaries to." )
+set ( INSTALL_INC ${INSTALL_TOP}/include CACHE PATH "Where to install headers to." )
+set ( INSTALL_LIB ${INSTALL_TOP}/lib CACHE PATH "Where to install libraries to." )
+set ( INSTALL_SHARE ${INSTALL_TOP}/share CACHE PATH "Directory for shared data." )
 
 # Secondary paths
 option ( INSTALL_VERSION
@@ -63,10 +80,6 @@ set ( INSTALL_DATA ${INSTALL_SHARE}/${DIST_NAME} CACHE PATH
       "Directory the package can store documentation, tests or other data in.")  
 set ( INSTALL_DOC  ${INSTALL_DATA}/doc CACHE PATH
       "Recommended directory to install documentation into.")
-set ( INSTALL_EXAMPLE ${INSTALL_DATA}/example CACHE PATH
-      "Recommended directory to install examples into.")
-set ( INSTALL_TEST ${INSTALL_DATA}/test CACHE PATH
-      "Recommended directory to install tests into.")
 set ( INSTALL_FOO  ${INSTALL_DATA}/etc CACHE PATH
       "Where to install additional files")
 
@@ -81,17 +94,20 @@ if ( MSVC )
   add_definitions ( -D_CRT_SECURE_NO_WARNINGS )
 endif ()
 
+
+if ( NOT WIN32 AND NOT CYGWIN )
 # RPath and relative linking
-option ( USE_RPATH "Use relative linking." ON)
-if ( USE_RPATH )
-  string ( REGEX REPLACE "[^!/]+" ".." UP_DIR ${INSTALL_BIN} )
-  set ( CMAKE_SKIP_BUILD_RPATH FALSE CACHE STRING "" FORCE )
-  set ( CMAKE_BUILD_WITH_INSTALL_RPATH FALSE CACHE STRING "" FORCE )
-  set ( CMAKE_INSTALL_RPATH $ORIGIN/${UP_DIR}/${INSTALL_LIB}
-        CACHE STRING "" FORCE )
-  set ( CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE CACHE STRING "" FORCE )
-  set ( CMAKE_INSTALL_NAME_DIR @executable_path/${UP_DIR}/${INSTALL_LIB}
-        CACHE STRING "" FORCE )
+  option ( USE_RPATH "Use relative linking." ON)
+  if ( USE_RPATH )
+    string ( REGEX REPLACE "[^!/]+" ".." UP_DIR ${INSTALL_BIN} )
+    set ( CMAKE_SKIP_BUILD_RPATH FALSE CACHE STRING "" FORCE )
+    set ( CMAKE_BUILD_WITH_INSTALL_RPATH FALSE CACHE STRING "" FORCE )
+    set ( CMAKE_INSTALL_RPATH $ORIGIN/${UP_DIR}/${INSTALL_LIB}
+          CACHE STRING "" FORCE )
+    set ( CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE CACHE STRING "" FORCE )
+    set ( CMAKE_INSTALL_NAME_DIR @executable_path/${UP_DIR}/${INSTALL_LIB}
+          CACHE STRING "" FORCE )
+  endif ()
 endif ()
 
 ## MACROS
@@ -243,49 +259,6 @@ macro ( install_doc )
   endforeach()
 endmacro ()
 
-# install_example ( files/directories [INTO destination]  )
-# This installs additional examples
-# USE: install_example ( examples/ exampleA )
-# USE: install_example ( super_example super_data INTO super)
-# For directories, supports optional PATTERN/REGEX argument like install().
-set ( CPACK_COMPONENT_EXAMPLE_DISPLAY_NAME "${DIST_NAME} Examples" )
-set ( CPACK_COMPONENT_EXAMPLE_DESCRIPTION
-    "Examples and their associated data. Installed into ${INSTALL_EXAMPLE}." )
-macro ( install_example )
-  parse_arguments ( _ARG "INTO;PATTERN;REGEX" "" ${ARGN} )
-  _complete_install_args()
-  foreach ( _file ${_ARG_DEFAULT_ARGS} )
-    if ( IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${_file}" )
-      install ( DIRECTORY ${_file} DESTINATION ${INSTALL_EXAMPLE}/${_ARG_INTO}
-                COMPONENT Example ${_ARG_PATTERN} ${_ARG_REGEX} )
-    else ()
-      install ( FILES ${_file} DESTINATION ${INSTALL_EXAMPLE}/${_ARG_INTO}
-                COMPONENT Example )
-    endif ()
-  endforeach()
-endmacro ()
-
-# install_test ( files/directories [INTO destination] )
-# This installs tests and test files, DOES NOT EXECUTE TESTS
-# USE: install_test ( my_test data.sql )
-# USE: install_test ( feature_x_test INTO x )
-# For directories, supports optional PATTERN/REGEX argument like install().
-set ( CPACK_COMPONENT_TEST_DISPLAY_NAME "${DIST_NAME} Tests" )
-set ( CPACK_COMPONENT_TEST_DESCRIPTION
-      "Tests and associated data. Installed into ${INSTALL_TEST}." )
-macro ( install_test )
-  parse_arguments ( _ARG "INTO;PATTERN;REGEX" "" ${ARGN} )
-  _complete_install_args()
-  foreach ( _file ${_ARG_DEFAULT_ARGS} )
-    if ( IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${_file}" )
-      install ( DIRECTORY ${_file} DESTINATION ${INSTALL_TEST}/${_ARG_INTO}
-                COMPONENT Test ${_ARG_PATTERN} ${_ARG_REGEX} )
-    else ()
-      install ( FILES ${_file} DESTINATION ${INSTALL_TEST}/${_ARG_INTO}
-                COMPONENT Test )
-    endif ()
-  endforeach()
-endmacro ()
 
 # install_foo ( files/directories [INTO destination] )
 # This installs optional or otherwise unneeded content
