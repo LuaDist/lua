@@ -19,6 +19,7 @@ option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relat
 
 option ( LUA_COMPAT_5_1 "Enable backwards compatibility options with lua-5.1." ON )
 option ( LUA_COMPAT_5_2 "Enable backwards compatibility options with lua-5.2." ON )
+option ( LUA_BUILD_EXECUTABLES "Enable Lua compiled and command prompt" ${BUILD_EXECUTABLES} )
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
 set ( LUA_DIRSEP "/" )
@@ -118,11 +119,13 @@ if ( LUA_BUILD_AS_DLL )
   set_target_properties ( liblua PROPERTIES COMPILE_DEFINITIONS LUA_BUILD_AS_DLL )
 endif ()
 
-add_executable ( lua ${SRC_LUA} src/lua.rc )
-target_link_libraries ( lua liblua )
+if ( LUA_BUILD_EXECUTABLES )
+    add_executable ( lua ${SRC_LUA} src/lua.rc )
+    target_link_libraries ( lua liblua )
 
-add_executable ( luac ${SRC_CORE} ${SRC_LIB} ${SRC_LUAC} src/luac.rc )
-target_link_libraries ( luac ${LIBS} )
+    add_executable ( luac ${SRC_CORE} ${SRC_LIB} ${SRC_LUAC} src/luac.rc )
+    target_link_libraries ( luac ${LIBS} )
+endif ( )
 
 # On windows a variant of the lua interpreter without console output needs to be built
 if ( LUA_BUILD_WLUA )
@@ -131,7 +134,9 @@ if ( LUA_BUILD_WLUA )
   install_executable ( wlua )
 endif ( )
 
-install_executable ( lua luac )
+if (LUA_BUILD_EXECUTABLES)
+    install_executable ( lua luac )
+endif ( )
 install_library ( liblua )
 install_data ( README.md )
 #install_lua_module ( strict etc/strict.lua )
