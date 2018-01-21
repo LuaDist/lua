@@ -5,7 +5,7 @@
 # Please note that the package source code is licensed under its own license.
 
 project ( lua C )
-cmake_minimum_required ( VERSION 2.8 )
+cmake_minimum_required ( VERSION 3.0.2 )
 include ( cmake/dist.cmake )
 include ( lua )
 
@@ -62,6 +62,10 @@ else ( )
   option ( LUA_USE_POPEN "Use popen." ON )
   option ( LUA_USE_ULONGJMP "Use ulongjmp" ON )
 endif ( )
+
+if (APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
 
 ## SETUP
 # Optional libraries
